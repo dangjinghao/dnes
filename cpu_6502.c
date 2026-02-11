@@ -151,22 +151,131 @@ static bool IZY() {
   return false;
 }
 
-/// Opcodes
+/// Instructions
 // the return means 'whether this instruction needs additional cycles'
 
 static bool ADC();
-static bool AND();
+
+// bitwise logic and
+static bool AND() {
+  fetch();
+  cpu.A = cpu.A & fetched;
+  cpu.status.Z = cpu.A == 0;
+  cpu.status.N = is_byte_neg(cpu.A);
+  return true;
+}
 static bool ASL();
-static bool BCC();
-static bool BCS();
-static bool BEQ();
+// branch if Carray clear
+static bool BCC() {
+  if (!cpu.status.C) {
+    cycles += 1;
+    addr_abs = cpu.PC + addr_rel;
+    // different page branch, +1 cycle
+    if (addr_page(addr_abs) != addr_page(cpu.PC))
+      cycles += 1;
+
+    cpu.PC = addr_abs;
+  }
+  return false;
+}
+// branch is carry set
+static bool BCS() {
+  if (cpu.status.C) {
+    cycles += 1;
+    addr_abs = cpu.PC + addr_rel;
+    // different page branch, +1 cycle
+    if (addr_page(addr_abs) != addr_page(cpu.PC))
+      cycles += 1;
+
+    cpu.PC = addr_abs;
+  }
+  return false;
+}
+// branch if equal
+static bool BEQ() {
+  if (cpu.status.Z) {
+    cycles += 1;
+    addr_abs = cpu.PC + addr_rel;
+    if (addr_page(addr_abs) != addr_page(cpu.PC))
+      cycles += 1;
+
+    cpu.PC = addr_abs;
+  }
+
+  return false;
+}
 static bool BIT();
-static bool BMI();
-static bool BNE();
-static bool BPL();
+// branch if negative
+static bool BMI() {
+  if (cpu.status.N) {
+    cycles += 1;
+    addr_abs = cpu.PC + addr_rel;
+
+    if (addr_page(addr_abs) != addr_page(cpu.PC))
+      cycles += 1;
+
+    cpu.PC = addr_abs;
+  }
+
+  return false;
+}
+// branch if not equal
+static bool BNE() {
+  if (!cpu.status.Z) {
+    cycles += 1;
+    addr_abs = cpu.PC + addr_rel;
+
+    if (addr_page(addr_abs) != addr_page(cpu.PC))
+      cycles += 1;
+
+    cpu.PC = addr_abs;
+  }
+
+  return false;
+}
+// branch if positive
+static bool BPL() {
+  if (!cpu.status.N) {
+    cycles += 1;
+    addr_abs = cpu.PC + addr_rel;
+
+    if (addr_page(addr_abs) != addr_page(cpu.PC))
+      cycles += 1;
+
+    cpu.PC = addr_abs;
+  }
+
+  return false;
+}
 static bool BRK();
-static bool BVC();
-static bool BVS();
+// branch if overflow clear
+static bool BVC() {
+  if (!cpu.status.V) {
+    cycles += 1;
+    addr_abs = cpu.PC + addr_rel;
+
+    if (addr_page(addr_abs) != addr_page(cpu.PC))
+      cycles += 1;
+
+    cpu.PC = addr_abs;
+  }
+
+  return false;
+}
+// branch if overflow set
+static bool BVS() {
+  if (cpu.status.V) {
+    cycles += 1;
+    addr_abs = cpu.PC + addr_rel;
+
+    if (addr_page(addr_abs) != addr_page(cpu.PC))
+      cycles += 1;
+
+    cpu.PC = addr_abs;
+  }
+
+  return false;
+}
 static bool CLC();
 static bool CLD();
 static bool CLI();
@@ -516,4 +625,11 @@ void cpu_clock() {
   }
 
   cycles -= 1;
+}
+
+static byte_t fetch() {
+  if (inst_lookup[opcode].addr_mode != IMP)
+    fetched = bus_read(addr_abs);
+
+  return fetched;
 }
