@@ -1,4 +1,5 @@
 #include "dnes.h"
+#include <stdbool.h>
 
 static struct {
   struct {
@@ -21,96 +22,202 @@ static struct {
 static addr_t addr_abs;
 static addr_t addr_rel;
 static byte_t opcode;
+// current inst remaining cycles
 static byte_t cycles;
-
 static byte_t fetched;
-static byte_t fetch();
-static void clock();
-static void irq();
-static void nmi();
 
-// Addressing Modes
-static byte_t IMP();
-static byte_t IMM();
-static byte_t ZP0();
-static byte_t ZPX();
-static byte_t ZPY();
-static byte_t REL();
-static byte_t ABS();
-static byte_t ABX();
-static byte_t ABY();
-static byte_t IND();
-static byte_t IZX();
-static byte_t IZY();
-// Opcodes
-static byte_t ADC();
-static byte_t AND();
-static byte_t ASL();
-static byte_t BCC();
-static byte_t BCS();
-static byte_t BEQ();
-static byte_t BIT();
-static byte_t BMI();
-static byte_t BNE();
-static byte_t BPL();
-static byte_t BRK();
-static byte_t BVC();
-static byte_t BVS();
-static byte_t CLC();
-static byte_t CLD();
-static byte_t CLI();
-static byte_t CLV();
-static byte_t CMP();
-static byte_t CPX();
-static byte_t CPY();
-static byte_t DEC();
-static byte_t DEX();
-static byte_t DEY();
-static byte_t EOR();
-static byte_t INC();
-static byte_t INX();
-static byte_t INY();
-static byte_t JMP();
-static byte_t JSR();
-static byte_t LDA();
-static byte_t LDX();
-static byte_t LDY();
-static byte_t LSR();
-static byte_t NOP();
-static byte_t ORA();
-static byte_t PHA();
-static byte_t PHP();
-static byte_t PLA();
-static byte_t PLP();
-static byte_t ROL();
-static byte_t ROR();
-static byte_t RTI();
-static byte_t RTS();
-static byte_t SBC();
-static byte_t SEC();
-static byte_t SED();
-static byte_t SEI();
-static byte_t STA();
-static byte_t STX();
-static byte_t STY();
-static byte_t TAX();
-static byte_t TAY();
-static byte_t TSX();
-static byte_t TXA();
-static byte_t TXS();
-static byte_t TYA();
+static byte_t fetch();
+
+/// Addressing Modes
+//
+
+#define comb_addr(hi, lo) ((addr_t)(((addr_t)hi << 8) | (addr_t)lo))
+
+static bool IMP() {
+  // looks like it combined IMP and Accum addressing modes.
+  fetched = cpu.A;
+  return false;
+}
+static bool IMM() {
+  addr_abs = cpu.PC++;
+  return false;
+}
+// the data can be found
+static bool ZP0() {
+  addr_abs = bus_read(cpu.PC++);
+  addr_abs &= 0x00FF;
+  return false;
+}
+static bool ZPX() {
+  addr_abs = (bus_read(cpu.PC++) + cpu.X);
+  addr_abs &= 0x00FF;
+  return false;
+}
+static bool ZPY() {
+  addr_abs = (bus_read(cpu.PC++) + cpu.Y);
+  addr_abs &= 0x00FF;
+  return false;
+}
+static bool REL() {
+  addr_rel = bus_read(cpu.PC++);
+  // range: -128 ~ 127
+  // if the readed rel byte is negative,
+  // we need to extend the signal bit
+  if (addr_rel & 0x80)
+    addr_rel |= 0xFF00;
+  return false;
+}
+static bool ABS() {
+  byte_t lo = bus_read(cpu.PC++);
+  byte_t hi = bus_read(cpu.PC++);
+
+  addr_abs = comb_addr(hi, lo);
+
+  return false;
+}
+static bool ABX() {
+  byte_t lo = bus_read(cpu.PC++);
+  byte_t hi = bus_read(cpu.PC++);
+
+  addr_abs = comb_addr(hi, lo);
+  addr_abs += cpu.X;
+
+  if ((addr_abs >> 8) != hi) {
+    // cross the page
+    return true;
+  }
+
+  return false;
+}
+static bool ABY() {
+  byte_t lo = bus_read(cpu.PC++);
+  byte_t hi = bus_read(cpu.PC++);
+
+  addr_abs = comb_addr(hi, lo);
+  addr_abs += cpu.Y;
+
+  if ((addr_abs >> 8) != hi) {
+    // cross the page
+    return true;
+  }
+
+  return false;
+}
+// indirect addressing
+static bool IND() {
+
+  byte_t lo = bus_read(cpu.PC++);
+  byte_t hi = bus_read(cpu.PC++);
+  addr_t addr = comb_addr(hi, lo);
+
+  if (lo == 0xFF) {
+    // Nes bug WARN:  An indirect JMP (xxFF) will fail because the MSB will
+    // be fetched from address xx00 instead of page xx+1.
+    lo = bus_read(addr);
+    hi = bus_read(addr & 0xFF00);
+  } else {
+    lo = bus_read(addr);
+    hi = bus_read(addr + 1);
+  }
+  addr_abs = comb_addr(hi, lo);
+
+  return false;
+}
+// indirect address of 0 page with X register
+static bool IZX() {
+  addr_t t = bus_read(cpu.PC++);
+  t = t + (addr_t)cpu.X;
+  byte_t lo = bus_read(t & 0x00FF);
+  byte_t hi = bus_read((t + 1) & 0x00FF);
+  addr_abs = comb_addr(hi, lo);
+
+  return false;
+}
+static bool IZY() {
+  addr_t t = bus_read(cpu.PC++);
+  byte_t lo = bus_read(t & 0x00FF);
+  byte_t hi = bus_read((t + 1) & 0x00FF);
+
+  addr_abs = comb_addr(hi, lo);
+  addr_abs += cpu.Y;
+
+  if ((addr_abs >> 8) != hi) {
+    // cross the page
+    return true;
+  }
+
+  return false;
+}
+/// Opcodes
+// 
+static bool ADC();
+static bool AND();
+static bool ASL();
+static bool BCC();
+static bool BCS();
+static bool BEQ();
+static bool BIT();
+static bool BMI();
+static bool BNE();
+static bool BPL();
+static bool BRK();
+static bool BVC();
+static bool BVS();
+static bool CLC();
+static bool CLD();
+static bool CLI();
+static bool CLV();
+static bool CMP();
+static bool CPX();
+static bool CPY();
+static bool DEC();
+static bool DEX();
+static bool DEY();
+static bool EOR();
+static bool INC();
+static bool INX();
+static bool INY();
+static bool JMP();
+static bool JSR();
+static bool LDA();
+static bool LDX();
+static bool LDY();
+static bool LSR();
+static bool NOP();
+static bool ORA();
+static bool PHA();
+static bool PHP();
+static bool PLA();
+static bool PLP();
+static bool ROL();
+static bool ROR();
+static bool RTI();
+static bool RTS();
+static bool SBC();
+static bool SEC();
+static bool SED();
+static bool SEI();
+static bool STA();
+static bool STX();
+static bool STY();
+static bool TAX();
+static bool TAY();
+static bool TSX();
+static bool TXA();
+static bool TXS();
+static bool TYA();
 // Invalid instruction trap
-static byte_t XXX();
+static bool XXX();
 
 struct inst {
   char *name;
-  byte_t (*operate)();
-  byte_t (*addr_mode)();
+  bool (*operate)();
+  bool (*addr_mode)();
   byte_t cycles;
 };
 
 #define GEN_INST(OP, AM, CY) {#OP, OP, AM, CY}
-#define GEN_XXX {"???", XXX, NOP, 2}
+#define GEN_XXX {"???", XXX, IMP, 2}
 
 static struct inst inst_lookup[] = {
     // 00 ~ 0F
@@ -390,3 +497,19 @@ static struct inst inst_lookup[] = {
     GEN_INST(INC, ABX, 7),
     GEN_XXX,
 };
+
+void cpu_clock() {
+  if (cycles == 0) {
+    // previous inst is processed, fetch new one
+    opcode = bus_read(cpu.PC++);
+    struct inst i = inst_lookup[opcode];
+    cycles = i.cycles;
+
+    bool additional_cycle1 = i.addr_mode();
+    bool additional_cycle2 = i.operate();
+    if (additional_cycle1 && additional_cycle2)
+      cycles += 1;
+  }
+
+  cycles -= 1;
+}
