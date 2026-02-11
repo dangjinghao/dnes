@@ -1,6 +1,6 @@
 #include "dnes.h"
+#include <assert.h>
 #include <stdbool.h>
-
 static struct {
   struct {
     byte_t C : 1;          // Carry
@@ -31,10 +31,10 @@ static byte_t fetch();
 /// Addressing Modes
 // the return value means 'whether this addressing mode will increase the cycle'
 
-#define comb_addr(hi, lo) ((addr_t)(((addr_t)hi << 8) | (addr_t)lo))
-#define is_byte_neg(B) (B & 0x80)
-#define addr_page(a) (a >> 8)
-
+#define comb_addr(hi, lo) ((addr_t)(((addr_t)(hi) << 8) | (addr_t)(lo)))
+#define is_byte_neg(B) (((B) & 0x80) != 0)
+#define addr_page(a) ((a) >> 8)
+#define gen_flag(f) (!!(f))
 static bool IMP() {
   // looks like it combined IMP and Accum addressing modes.
   fetched = cpu.A;
@@ -113,8 +113,8 @@ static bool IND() {
   addr_t addr = comb_addr(hi, lo);
 
   if (lo == 0xFF) {
-    // Nes bug WARN:  An indirect JMP (xxFF) will fail because the MSB will
-    // be fetched from address xx00 instead of page xx+1.
+    // 6502 hardware bug WARN: An indirect JMP (xxFF) will fail because the MSB
+    // will be fetched from address xx00 instead of page xx+1.
     lo = bus_read(addr);
     hi = bus_read(addr & 0xFF00);
   } else {
@@ -152,20 +152,37 @@ static bool IZY() {
 }
 
 /// Instructions
-// the return means 'whether this instruction needs additional cycles'
+// the return means 'whether this instruction need the additional cycles'
 
-static bool ADC();
+static bool ADC() {
+  assert(cpu.status.D == 0);
+
+  // get the data
+  fetch();
+
+  uint16_t result =
+      (uint16_t)cpu.A + (uint16_t)fetched + (uint16_t)cpu.status.C;
+  cpu.status.C = gen_flag(result > 0x00FF);
+  cpu.status.Z = gen_flag((result & 0x00FF) == 0);
+  // SetFlag(V, (~((uint16_t)a ^ (uint16_t)fetched) & ((uint16_t)a ^ (uint16_t)temp)) & 0x0080);
+  uint16_t tmp1 = ~((uint16_t)cpu.A ^ (uint16_t)fetched);
+  uint16_t tmp2 = (uint16_t)cpu.A ^ (uint16_t)result;
+  cpu.status.V = gen_flag((tmp1 & tmp2) & 0x0080);
+  cpu.status.N = is_byte_neg((byte_t)result);
+  cpu.A = result & 0x00FF;
+  return true;
+}
 
 // bitwise logic and
 static bool AND() {
   fetch();
   cpu.A = cpu.A & fetched;
-  cpu.status.Z = cpu.A == 0;
+  cpu.status.Z = gen_flag(cpu.A == 0);
   cpu.status.N = is_byte_neg(cpu.A);
   return true;
 }
 static bool ASL();
-// branch if Carray clear
+// branch if Carry clear
 static bool BCC() {
   if (!cpu.status.C) {
     cycles += 1;
@@ -178,7 +195,7 @@ static bool BCC() {
   }
   return false;
 }
-// branch is carry set
+// branch if carry set
 static bool BCS() {
   if (cpu.status.C) {
     cycles += 1;
@@ -276,10 +293,22 @@ static bool BVS() {
 
   return false;
 }
-static bool CLC();
-static bool CLD();
-static bool CLI();
-static bool CLV();
+static bool CLC() {
+  cpu.status.C = 0;
+  return 0;
+}
+static bool CLD() {
+  cpu.status.D = 0;
+  return 0;
+}
+static bool CLI() {
+  cpu.status.I = 0;
+  return 0;
+}
+static bool CLV() {
+  cpu.status.V = 0;
+  return 0;
+}
 static bool CMP();
 static bool CPX();
 static bool CPY();
@@ -306,7 +335,22 @@ static bool ROL();
 static bool ROR();
 static bool RTI();
 static bool RTS();
-static bool SBC();
+static bool SBC() {
+  assert(cpu.status.D == 0);
+  fetch();
+
+  uint16_t value = ((uint16_t)fetched) ^ 0x00FF;
+  uint16_t temp = (uint16_t)cpu.A + (uint16_t)value + (uint16_t)cpu.status.C;
+  cpu.status.C = gen_flag(temp > 0x00FF);
+  cpu.status.Z = gen_flag((temp & 0x00FF) == 0);
+  // SetFlag(V, (temp ^ (uint16_t)a) & (temp ^ value) & 0x0080);
+  uint16_t tmp1 = (uint16_t)cpu.A ^ (uint16_t)temp;
+  uint16_t tmp2 = (uint16_t)value ^ (uint16_t)temp;
+  cpu.status.V = gen_flag((tmp1 & tmp2) & 0x0080);
+  cpu.status.N = is_byte_neg((byte_t)temp);
+  cpu.A = temp & 0x00FF;
+  return true;
+}
 static bool SEC();
 static bool SED();
 static bool SEI();
