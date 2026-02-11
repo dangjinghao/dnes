@@ -29,9 +29,11 @@ static byte_t fetched;
 static byte_t fetch();
 
 /// Addressing Modes
-//
+// the return value means 'whether this addressing mode will increase the cycle'
 
 #define comb_addr(hi, lo) ((addr_t)(((addr_t)hi << 8) | (addr_t)lo))
+#define is_byte_neg(B) (B & 0x80)
+#define addr_page(a) (a >> 8)
 
 static bool IMP() {
   // looks like it combined IMP and Accum addressing modes.
@@ -63,7 +65,7 @@ static bool REL() {
   // range: -128 ~ 127
   // if the readed rel byte is negative,
   // we need to extend the signal bit
-  if (addr_rel & 0x80)
+  if (is_byte_neg(addr_rel))
     addr_rel |= 0xFF00;
   return false;
 }
@@ -82,7 +84,7 @@ static bool ABX() {
   addr_abs = comb_addr(hi, lo);
   addr_abs += cpu.X;
 
-  if ((addr_abs >> 8) != hi) {
+  if (addr_page(addr_abs) != hi) {
     // cross the page
     return true;
   }
@@ -96,7 +98,7 @@ static bool ABY() {
   addr_abs = comb_addr(hi, lo);
   addr_abs += cpu.Y;
 
-  if ((addr_abs >> 8) != hi) {
+  if (addr_page(addr_abs) != hi) {
     // cross the page
     return true;
   }
@@ -141,15 +143,17 @@ static bool IZY() {
   addr_abs = comb_addr(hi, lo);
   addr_abs += cpu.Y;
 
-  if ((addr_abs >> 8) != hi) {
+  if (addr_page(addr_abs) != hi) {
     // cross the page
     return true;
   }
 
   return false;
 }
+
 /// Opcodes
-// 
+// the return means 'whether this instruction needs additional cycles'
+
 static bool ADC();
 static bool AND();
 static bool ASL();
