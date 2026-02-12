@@ -37,8 +37,22 @@ static byte_t fetch();
 #define gen_flag(f) (!!(f))
 #define stack_base (0x0100)
 #define cpu_status_byte (*(byte_t *)&cpu.P)
-
 static_assert(sizeof(cpu.P) == 1, "Unexcepted cpu status length");
+
+#define ASSERT_UINT16(v)                                                       \
+  do {                                                                         \
+    typedef typeof(v) _v_type;                                                 \
+    _Static_assert(__builtin_types_compatible_p(_v_type, uint16_t),            \
+                   "ASSERT_UINT16 failed: expression is not uint16_t");        \
+  } while (0)
+
+#define gen_status_C(v)                                                        \
+  ({                                                                           \
+    ASSERT_UINT16(v);                                                          \
+    gen_flag(v > 0x00FF);                                                      \
+  })
+#define gen_status_Z(v) (gen_flag(((byte_t)(v)) == 0))
+#define gen_status_N(v) (gen_flag(is_byte_neg((byte_t)(v))))
 
 static bool IMP() {
   // looks like it combined IMP and Accum addressing modes.
@@ -168,8 +182,9 @@ static bool ADC() {
   fetch();
 
   uint16_t result = (uint16_t)cpu.A + (uint16_t)fetched + (uint16_t)cpu.P.C;
-  cpu.P.C = gen_flag(result > 0x00FF);
-  cpu.P.Z = gen_flag((result & 0x00FF) == 0);
+  cpu.P.C = gen_status_C(result);
+  cpu.P.Z = gen_status_Z(result);
+
   // ref: olc6502 ADC comment
   // To assist us, the 6502 can set the overflow flag, if the result of the
   // addition has
@@ -206,7 +221,7 @@ static bool ADC() {
   uint16_t tmp1 = ~((uint16_t)cpu.A ^ (uint16_t)fetched);
   uint16_t tmp2 = (uint16_t)cpu.A ^ (uint16_t)result;
   cpu.P.V = gen_flag((tmp1 & tmp2) & 0x0080);
-  cpu.P.N = gen_flag(is_byte_neg((byte_t)result));
+  cpu.P.N = gen_status_N(result);
   cpu.A = result & 0x00FF;
   return true;
 }
@@ -226,15 +241,15 @@ static bool SBC() {
   // ~M
   uint16_t M = ((uint16_t)fetched) ^ 0x00FF;
   uint16_t result = (uint16_t)cpu.A + (uint16_t)M + (uint16_t)cpu.P.C;
-  cpu.P.C = gen_flag(result > 0x00FF);
-  cpu.P.Z = gen_flag((result & 0x00FF) == 0);
+  cpu.P.C = gen_status_C(result);
+  cpu.P.Z = gen_status_Z(result);
   // Overflow: (+)A - (+)M = (-)
   //           (-)A - (-)M = (+)
   // SetFlag(V, (temp ^ (uint16_t)a) & (temp ^ value) & 0x0080);
   uint16_t tmp1 = (uint16_t)cpu.A ^ result;
   uint16_t tmp2 = (uint16_t)M ^ result;
   cpu.P.V = gen_flag((tmp1 & tmp2) & 0x0080);
-  cpu.P.N = gen_flag(is_byte_neg((byte_t)result));
+  cpu.P.N = gen_status_N(result);
   cpu.A = result & 0x00FF;
   return true;
 }
@@ -243,8 +258,8 @@ static bool SBC() {
 static bool AND() {
   fetch();
   cpu.A &= fetched;
-  cpu.P.Z = gen_flag(cpu.A == 0);
-  cpu.P.N = gen_flag(is_byte_neg(cpu.A));
+  cpu.P.Z = gen_status_Z(cpu.A);
+  cpu.P.N = gen_status_N(cpu.A);
   return true;
 }
 static bool ASL();
@@ -399,8 +414,8 @@ static bool PHA() {
 }
 static bool PLA() {
   cpu.A = bus_read(stack_base + (++cpu.STKP));
-  cpu.P.Z = gen_flag(cpu.A == 0x00);
-  cpu.P.N = gen_flag(is_byte_neg(cpu.A));
+  cpu.P.Z = gen_status_Z(cpu.A);
+  cpu.P.N = gen_status_N(cpu.A);
   return false;
 }
 static bool PHP();
