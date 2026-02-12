@@ -35,6 +35,7 @@ static byte_t fetch();
 #define is_byte_neg(B) (((B) & 0x80) != 0)
 #define addr_page(a) ((a) >> 8)
 #define gen_flag(f) (!!(f))
+
 static bool IMP() {
   // looks like it combined IMP and Accum addressing modes.
   fetched = cpu.A;
@@ -44,7 +45,7 @@ static bool IMM() {
   addr_abs = cpu.PC++;
   return false;
 }
-// the data can be found
+// the data can be found in page 0
 static bool ZP0() {
   addr_abs = bus_read(cpu.PC++);
   addr_abs &= 0x00FF;
@@ -63,7 +64,7 @@ static bool ZPY() {
 static bool REL() {
   addr_rel = bus_read(cpu.PC++);
   // range: -128 ~ 127
-  // if the readed rel byte is negative,
+  // if the readed rel address byte is negative,
   // we need to extend the signal bit
   if (is_byte_neg(addr_rel))
     addr_rel |= 0xFF00;
@@ -116,6 +117,7 @@ static bool IND() {
     // 6502 hardware bug WARN: An indirect JMP (xxFF) will fail because the MSB
     // will be fetched from address xx00 instead of page xx+1.
     lo = bus_read(addr);
+    // read xx00
     hi = bus_read(addr & 0xFF00);
   } else {
     lo = bus_read(addr);
@@ -154,6 +156,7 @@ static bool IZY() {
 /// Instructions
 // the return means 'whether this instruction need the additional cycles'
 
+// Addition with carry bit
 static bool ADC() {
   assert(cpu.status.D == 0);
 
@@ -164,11 +167,71 @@ static bool ADC() {
       (uint16_t)cpu.A + (uint16_t)fetched + (uint16_t)cpu.status.C;
   cpu.status.C = gen_flag(result > 0x00FF);
   cpu.status.Z = gen_flag((result & 0x00FF) == 0);
-  // SetFlag(V, (~((uint16_t)a ^ (uint16_t)fetched) & ((uint16_t)a ^ (uint16_t)temp)) & 0x0080);
+  // ref: olc6502 ADC comment
+  // To assist us, the 6502 can set the overflow flag, if the result of the
+  // addition has
+  // wrapped around. V <- ~(A^M) & A^(A+M+C) :D lol, let's work out why!
+  //
+  // Let's suppose we have A = 30, M = 10 and C = 0
+  //          A = 30 = 00011110
+  //          M = 10 = 00001010+
+  //     RESULT = 40 = 00101000
+  //
+  // Here we have not gone out of range. The resulting significant bit has not
+  // changed. So let's make a truth table to understand when overflow has
+  // occurred. Here I take the MSB of each component, where R is RESULT.
+  //
+  // A  M  R | V | A^R | A^M |~(A^M) |
+  // 0  0  0 | 0 |  0  |  0  |   1   |
+  // 0  0  1 | 1 |  1  |  0  |   1   |
+  // 0  1  0 | 0 |  0  |  1  |   0   |
+  // 0  1  1 | 0 |  1  |  1  |   0   |  so V = ~(A^M) & (A^R)
+  // 1  0  0 | 0 |  1  |  1  |   0   |
+  // 1  0  1 | 0 |  0  |  1  |   0   |
+  // 1  1  0 | 1 |  1  |  0  |   1   |
+  // 1  1  1 | 0 |  0  |  0  |   1   |
+  //
+  // We can see how the above equation calculates V, based on A, M and R. V was
+  // chosen based on the following hypothesis:
+  //       Positive Number + Positive Number = Negative Result -> Overflow
+  //       Negative Number + Negative Number = Positive Result -> Overflow
+  //       Positive Number + Negative Number = Either Result -> Cannot Overflow
+  //       Positive Number + Positive Number = Positive Result -> OK!
+  //       Negative Number + Negative Number = Negative Result -> OK!
+  // SetFlag(V, (~((uint16_t)a ^ (uint16_t)fetched) &
+  //            ((uint16_t)a ^ (uint16_t)temp)) & 0x0080);
   uint16_t tmp1 = ~((uint16_t)cpu.A ^ (uint16_t)fetched);
   uint16_t tmp2 = (uint16_t)cpu.A ^ (uint16_t)result;
   cpu.status.V = gen_flag((tmp1 & tmp2) & 0x0080);
-  cpu.status.N = is_byte_neg((byte_t)result);
+  cpu.status.N = gen_flag(is_byte_neg((byte_t)result));
+  cpu.A = result & 0x00FF;
+  return true;
+}
+
+// Subtraction with carry bit
+// in theory, A = A - M - borrow(prev bit)
+// but in 6502, borrow = 1 - C
+// to reuse the circuit
+// A = A - M - (1-C)
+//   = A + (-M) -1 + C
+//   = A + (~M + 1) - 1 + C
+//   = A + ~M + C
+// A = A + ~M + C
+static bool SBC() {
+  assert(cpu.status.D == 0);
+  fetch();
+  // ~M
+  uint16_t M = ((uint16_t)fetched) ^ 0x00FF;
+  uint16_t result = (uint16_t)cpu.A + (uint16_t)M + (uint16_t)cpu.status.C;
+  cpu.status.C = gen_flag(result > 0x00FF);
+  cpu.status.Z = gen_flag((result & 0x00FF) == 0);
+  // Overflow: (+)A - (+)M = (-)
+  //           (-)A - (-)M = (+)
+  // SetFlag(V, (temp ^ (uint16_t)a) & (temp ^ value) & 0x0080);
+  uint16_t tmp1 = (uint16_t)cpu.A ^ result;
+  uint16_t tmp2 = (uint16_t)M ^ result;
+  cpu.status.V = gen_flag((tmp1 & tmp2) & 0x0080);
+  cpu.status.N = gen_flag(is_byte_neg((byte_t)result));
   cpu.A = result & 0x00FF;
   return true;
 }
@@ -176,9 +239,9 @@ static bool ADC() {
 // bitwise logic and
 static bool AND() {
   fetch();
-  cpu.A = cpu.A & fetched;
+  cpu.A &= fetched;
   cpu.status.Z = gen_flag(cpu.A == 0);
-  cpu.status.N = is_byte_neg(cpu.A);
+  cpu.status.N = gen_flag(is_byte_neg(cpu.A));
   return true;
 }
 static bool ASL();
@@ -335,22 +398,6 @@ static bool ROL();
 static bool ROR();
 static bool RTI();
 static bool RTS();
-static bool SBC() {
-  assert(cpu.status.D == 0);
-  fetch();
-
-  uint16_t value = ((uint16_t)fetched) ^ 0x00FF;
-  uint16_t temp = (uint16_t)cpu.A + (uint16_t)value + (uint16_t)cpu.status.C;
-  cpu.status.C = gen_flag(temp > 0x00FF);
-  cpu.status.Z = gen_flag((temp & 0x00FF) == 0);
-  // SetFlag(V, (temp ^ (uint16_t)a) & (temp ^ value) & 0x0080);
-  uint16_t tmp1 = (uint16_t)cpu.A ^ (uint16_t)temp;
-  uint16_t tmp2 = (uint16_t)value ^ (uint16_t)temp;
-  cpu.status.V = gen_flag((tmp1 & tmp2) & 0x0080);
-  cpu.status.N = is_byte_neg((byte_t)temp);
-  cpu.A = temp & 0x00FF;
-  return true;
-}
 static bool SEC();
 static bool SED();
 static bool SEI();
