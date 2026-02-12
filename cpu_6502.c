@@ -35,6 +35,10 @@ static byte_t fetch();
 #define is_byte_neg(B) (((B) & 0x80) != 0)
 #define addr_page(a) ((a) >> 8)
 #define gen_flag(f) (!!(f))
+#define stack_base (0x0100)
+#define cpu_status_byte (*(byte_t *)&cpu.status)
+
+static_assert(sizeof(cpu.status) == 1, "Unexcepted cpu status length");
 
 static bool IMP() {
   // looks like it combined IMP and Accum addressing modes.
@@ -390,13 +394,30 @@ static bool LDY();
 static bool LSR();
 static bool NOP();
 static bool ORA();
-static bool PHA();
+static bool PHA() {
+  bus_write(stack_base + (cpu.STKP--), cpu.A);
+  return false;
+}
+static bool PLA() {
+  cpu.A = bus_read(stack_base + (++cpu.STKP));
+  cpu.status.Z = gen_flag(cpu.A == 0x00);
+  cpu.status.N = gen_flag(is_byte_neg(cpu.A));
+  return false;
+}
 static bool PHP();
-static bool PLA();
 static bool PLP();
 static bool ROL();
 static bool ROR();
-static bool RTI();
+static bool RTI() {
+  cpu_status_byte = bus_read(stack_base + (++cpu.STKP));
+  cpu.status.B = 0;
+  // WARN: __unused__ should be always 1, but olc6502 just reset it, that may be
+  // wrong implementation.
+  addr_t lo = (addr_t)bus_read(stack_base + (++cpu.STKP));
+  addr_t hi = (addr_t)bus_read(stack_base + (++cpu.STKP));
+  cpu.PC = comb_addr(hi, lo);
+  return 0;
+}
 static bool RTS();
 static bool SEC();
 static bool SED();
@@ -723,4 +744,64 @@ static byte_t fetch() {
     fetched = bus_read(addr_abs);
 
   return fetched;
+}
+
+void cpu_reset() {
+  cpu.A = 0;
+  cpu.X = 0;
+  cpu.Y = 0;
+  cpu.STKP = 0xFD;
+  cpu_status_byte = 0;
+  // this unused bit should always be 1 in the datasheet
+  cpu.status.__unused__ = 1;
+  // WARN: olc6502 doesn't set this
+  cpu.status.I = 1;
+
+  addr_abs = 0xFFFC;
+  byte_t lo = bus_read(addr_abs);
+  byte_t hi = bus_read(addr_abs + 1);
+  // 7 cycles in std reset manual, they are previous operations.
+
+  // 8th cycle, JMP to the address
+  cpu.PC = comb_addr(hi, lo);
+
+  addr_rel = 0x0000;
+  addr_abs = 0x0000;
+  fetched = 0x00;
+
+  cycles = 8;
+}
+void cpu_irq() {
+  if (cpu.status.I) {
+    return;
+  }
+  bus_write(stack_base + (cpu.STKP--), addr_page(cpu.PC) & 0x00FF);
+  bus_write(stack_base + (cpu.STKP--), cpu.PC & 0x00FF);
+
+  cpu.status.B = 0;
+  // bit 5 reads back as 1 on a 6502; keep stack copy consistent
+  cpu.status.__unused__ = 1;
+  // WARN: wrong implementation in olc6502, the I flag should be set after push
+  bus_write(stack_base + (cpu.STKP--), cpu_status_byte);
+  cpu.status.I = 1;
+  addr_abs = 0xFFFE;
+  byte_t lo = bus_read(addr_abs);
+  byte_t hi = bus_read(addr_abs + 1);
+  cpu.PC = comb_addr(hi, lo);
+  cycles = 7;
+}
+void cpu_nmi() {
+  bus_write(stack_base + (cpu.STKP--), addr_page(cpu.PC) & 0x00FF);
+  bus_write(stack_base + (cpu.STKP--), cpu.PC & 0x00FF);
+  cpu.status.B = 0;
+  // bit 5 reads back as 1 on a 6502; keep stack copy consistent
+  cpu.status.__unused__ = 1;
+  // WARN: wrong implementation in olc6502, the I flag should be set after push
+  bus_write(stack_base + (cpu.STKP--), cpu_status_byte);
+  cpu.status.I = 1;
+  addr_abs = 0xFFFA;
+  byte_t lo = bus_read(addr_abs);
+  byte_t hi = bus_read(addr_abs + 1);
+  cpu.PC = comb_addr(hi, lo);
+  cycles = 8;
 }
