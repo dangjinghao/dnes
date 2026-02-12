@@ -11,7 +11,7 @@ static struct {
     byte_t __unused__ : 1; // Unused
     byte_t V : 1;          // Overflow
     byte_t N : 1;          // Negative
-  } status;
+  } P;
   byte_t A;
   byte_t X;
   byte_t Y;
@@ -36,9 +36,9 @@ static byte_t fetch();
 #define addr_page(a) ((a) >> 8)
 #define gen_flag(f) (!!(f))
 #define stack_base (0x0100)
-#define cpu_status_byte (*(byte_t *)&cpu.status)
+#define cpu_status_byte (*(byte_t *)&cpu.P)
 
-static_assert(sizeof(cpu.status) == 1, "Unexcepted cpu status length");
+static_assert(sizeof(cpu.P) == 1, "Unexcepted cpu status length");
 
 static bool IMP() {
   // looks like it combined IMP and Accum addressing modes.
@@ -162,15 +162,14 @@ static bool IZY() {
 
 // Addition with carry bit
 static bool ADC() {
-  assert(cpu.status.D == 0);
+  assert(cpu.P.D == 0);
 
   // get the data
   fetch();
 
-  uint16_t result =
-      (uint16_t)cpu.A + (uint16_t)fetched + (uint16_t)cpu.status.C;
-  cpu.status.C = gen_flag(result > 0x00FF);
-  cpu.status.Z = gen_flag((result & 0x00FF) == 0);
+  uint16_t result = (uint16_t)cpu.A + (uint16_t)fetched + (uint16_t)cpu.P.C;
+  cpu.P.C = gen_flag(result > 0x00FF);
+  cpu.P.Z = gen_flag((result & 0x00FF) == 0);
   // ref: olc6502 ADC comment
   // To assist us, the 6502 can set the overflow flag, if the result of the
   // addition has
@@ -206,8 +205,8 @@ static bool ADC() {
   //            ((uint16_t)a ^ (uint16_t)temp)) & 0x0080);
   uint16_t tmp1 = ~((uint16_t)cpu.A ^ (uint16_t)fetched);
   uint16_t tmp2 = (uint16_t)cpu.A ^ (uint16_t)result;
-  cpu.status.V = gen_flag((tmp1 & tmp2) & 0x0080);
-  cpu.status.N = gen_flag(is_byte_neg((byte_t)result));
+  cpu.P.V = gen_flag((tmp1 & tmp2) & 0x0080);
+  cpu.P.N = gen_flag(is_byte_neg((byte_t)result));
   cpu.A = result & 0x00FF;
   return true;
 }
@@ -222,20 +221,20 @@ static bool ADC() {
 //   = A + ~M + C
 // A = A + ~M + C
 static bool SBC() {
-  assert(cpu.status.D == 0);
+  assert(cpu.P.D == 0);
   fetch();
   // ~M
   uint16_t M = ((uint16_t)fetched) ^ 0x00FF;
-  uint16_t result = (uint16_t)cpu.A + (uint16_t)M + (uint16_t)cpu.status.C;
-  cpu.status.C = gen_flag(result > 0x00FF);
-  cpu.status.Z = gen_flag((result & 0x00FF) == 0);
+  uint16_t result = (uint16_t)cpu.A + (uint16_t)M + (uint16_t)cpu.P.C;
+  cpu.P.C = gen_flag(result > 0x00FF);
+  cpu.P.Z = gen_flag((result & 0x00FF) == 0);
   // Overflow: (+)A - (+)M = (-)
   //           (-)A - (-)M = (+)
   // SetFlag(V, (temp ^ (uint16_t)a) & (temp ^ value) & 0x0080);
   uint16_t tmp1 = (uint16_t)cpu.A ^ result;
   uint16_t tmp2 = (uint16_t)M ^ result;
-  cpu.status.V = gen_flag((tmp1 & tmp2) & 0x0080);
-  cpu.status.N = gen_flag(is_byte_neg((byte_t)result));
+  cpu.P.V = gen_flag((tmp1 & tmp2) & 0x0080);
+  cpu.P.N = gen_flag(is_byte_neg((byte_t)result));
   cpu.A = result & 0x00FF;
   return true;
 }
@@ -244,14 +243,14 @@ static bool SBC() {
 static bool AND() {
   fetch();
   cpu.A &= fetched;
-  cpu.status.Z = gen_flag(cpu.A == 0);
-  cpu.status.N = gen_flag(is_byte_neg(cpu.A));
+  cpu.P.Z = gen_flag(cpu.A == 0);
+  cpu.P.N = gen_flag(is_byte_neg(cpu.A));
   return true;
 }
 static bool ASL();
 // branch if Carry clear
 static bool BCC() {
-  if (!cpu.status.C) {
+  if (!cpu.P.C) {
     cycles += 1;
     addr_abs = cpu.PC + addr_rel;
     // different page branch, +1 cycle
@@ -264,7 +263,7 @@ static bool BCC() {
 }
 // branch if carry set
 static bool BCS() {
-  if (cpu.status.C) {
+  if (cpu.P.C) {
     cycles += 1;
     addr_abs = cpu.PC + addr_rel;
     // different page branch, +1 cycle
@@ -277,7 +276,7 @@ static bool BCS() {
 }
 // branch if equal
 static bool BEQ() {
-  if (cpu.status.Z) {
+  if (cpu.P.Z) {
     cycles += 1;
     addr_abs = cpu.PC + addr_rel;
     if (addr_page(addr_abs) != addr_page(cpu.PC))
@@ -291,7 +290,7 @@ static bool BEQ() {
 static bool BIT();
 // branch if negative
 static bool BMI() {
-  if (cpu.status.N) {
+  if (cpu.P.N) {
     cycles += 1;
     addr_abs = cpu.PC + addr_rel;
 
@@ -305,7 +304,7 @@ static bool BMI() {
 }
 // branch if not equal
 static bool BNE() {
-  if (!cpu.status.Z) {
+  if (!cpu.P.Z) {
     cycles += 1;
     addr_abs = cpu.PC + addr_rel;
 
@@ -319,7 +318,7 @@ static bool BNE() {
 }
 // branch if positive
 static bool BPL() {
-  if (!cpu.status.N) {
+  if (!cpu.P.N) {
     cycles += 1;
     addr_abs = cpu.PC + addr_rel;
 
@@ -334,7 +333,7 @@ static bool BPL() {
 static bool BRK();
 // branch if overflow clear
 static bool BVC() {
-  if (!cpu.status.V) {
+  if (!cpu.P.V) {
     cycles += 1;
     addr_abs = cpu.PC + addr_rel;
 
@@ -348,7 +347,7 @@ static bool BVC() {
 }
 // branch if overflow set
 static bool BVS() {
-  if (cpu.status.V) {
+  if (cpu.P.V) {
     cycles += 1;
     addr_abs = cpu.PC + addr_rel;
 
@@ -361,19 +360,19 @@ static bool BVS() {
   return false;
 }
 static bool CLC() {
-  cpu.status.C = 0;
+  cpu.P.C = 0;
   return 0;
 }
 static bool CLD() {
-  cpu.status.D = 0;
+  cpu.P.D = 0;
   return 0;
 }
 static bool CLI() {
-  cpu.status.I = 0;
+  cpu.P.I = 0;
   return 0;
 }
 static bool CLV() {
-  cpu.status.V = 0;
+  cpu.P.V = 0;
   return 0;
 }
 static bool CMP();
@@ -400,8 +399,8 @@ static bool PHA() {
 }
 static bool PLA() {
   cpu.A = bus_read(stack_base + (++cpu.STKP));
-  cpu.status.Z = gen_flag(cpu.A == 0x00);
-  cpu.status.N = gen_flag(is_byte_neg(cpu.A));
+  cpu.P.Z = gen_flag(cpu.A == 0x00);
+  cpu.P.N = gen_flag(is_byte_neg(cpu.A));
   return false;
 }
 static bool PHP();
@@ -410,7 +409,7 @@ static bool ROL();
 static bool ROR();
 static bool RTI() {
   cpu_status_byte = bus_read(stack_base + (++cpu.STKP));
-  cpu.status.B = 0;
+  cpu.P.B = 0;
   // WARN: __unused__ should be always 1, but olc6502 just reset it, that may be
   // wrong implementation.
   addr_t lo = (addr_t)bus_read(stack_base + (++cpu.STKP));
@@ -753,9 +752,9 @@ void cpu_reset() {
   cpu.STKP = 0xFD;
   cpu_status_byte = 0;
   // this unused bit should always be 1 in the datasheet
-  cpu.status.__unused__ = 1;
+  cpu.P.__unused__ = 1;
   // WARN: olc6502 doesn't set this
-  cpu.status.I = 1;
+  cpu.P.I = 1;
 
   addr_abs = 0xFFFC;
   byte_t lo = bus_read(addr_abs);
@@ -772,18 +771,18 @@ void cpu_reset() {
   cycles = 8;
 }
 void cpu_irq() {
-  if (cpu.status.I) {
+  if (cpu.P.I) {
     return;
   }
   bus_write(stack_base + (cpu.STKP--), addr_page(cpu.PC) & 0x00FF);
   bus_write(stack_base + (cpu.STKP--), cpu.PC & 0x00FF);
 
-  cpu.status.B = 0;
+  cpu.P.B = 0;
   // bit 5 reads back as 1 on a 6502; keep stack copy consistent
-  cpu.status.__unused__ = 1;
+  cpu.P.__unused__ = 1;
   // WARN: wrong implementation in olc6502, the I flag should be set after push
   bus_write(stack_base + (cpu.STKP--), cpu_status_byte);
-  cpu.status.I = 1;
+  cpu.P.I = 1;
   addr_abs = 0xFFFE;
   byte_t lo = bus_read(addr_abs);
   byte_t hi = bus_read(addr_abs + 1);
@@ -793,12 +792,12 @@ void cpu_irq() {
 void cpu_nmi() {
   bus_write(stack_base + (cpu.STKP--), addr_page(cpu.PC) & 0x00FF);
   bus_write(stack_base + (cpu.STKP--), cpu.PC & 0x00FF);
-  cpu.status.B = 0;
+  cpu.P.B = 0;
   // bit 5 reads back as 1 on a 6502; keep stack copy consistent
-  cpu.status.__unused__ = 1;
+  cpu.P.__unused__ = 1;
   // WARN: wrong implementation in olc6502, the I flag should be set after push
   bus_write(stack_base + (cpu.STKP--), cpu_status_byte);
-  cpu.status.I = 1;
+  cpu.P.I = 1;
   addr_abs = 0xFFFA;
   byte_t lo = bus_read(addr_abs);
   byte_t hi = bus_read(addr_abs + 1);
