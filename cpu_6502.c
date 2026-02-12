@@ -1,6 +1,7 @@
 #include "dnes.h"
 #include <assert.h>
 #include <stdbool.h>
+#include <stdint.h>
 static struct {
   struct {
     byte_t C : 1;          // Carry
@@ -28,31 +29,29 @@ static byte_t fetched;
 
 static byte_t fetch();
 
+static inline addr_t comb_addr(byte_t hi, byte_t lo) {
+  return (addr_t)((hi << 8) | lo);
+}
+
+static inline bool is_byte_neg(byte_t B) { return (B & 0x80) != 0; }
+
+static inline byte_t addr_page(addr_t a) { return a >> 8; }
+
+static inline bool gen_flag(uint16_t f) { return !!f; }
+
+const static addr_t stack_base = (0x0100);
+
+#define cpu_status_byte (*(byte_t *)&cpu.P)
+
+static_assert(sizeof(cpu.P) == 1, "Excepted cpu status length: 1Byte");
+
+static inline bool gen_status_C(uint16_t v) { return gen_flag(v > 0x00FF); }
+
+static inline bool gen_status_Z(byte_t v) { return gen_flag(v == 0); }
+static inline bool gen_status_N(byte_t v) { return gen_flag(is_byte_neg(v)); }
+
 /// Addressing Modes
 // the return value means 'whether this addressing mode will increase the cycle'
-
-#define comb_addr(hi, lo) ((addr_t)(((addr_t)(hi) << 8) | (addr_t)(lo)))
-#define is_byte_neg(B) (((B) & 0x80) != 0)
-#define addr_page(a) ((a) >> 8)
-#define gen_flag(f) (!!(f))
-#define stack_base (0x0100)
-#define cpu_status_byte (*(byte_t *)&cpu.P)
-static_assert(sizeof(cpu.P) == 1, "Unexcepted cpu status length");
-
-#define ASSERT_UINT16(v)                                                       \
-  do {                                                                         \
-    typedef typeof(v) _v_type;                                                 \
-    _Static_assert(__builtin_types_compatible_p(_v_type, uint16_t),            \
-                   "ASSERT_UINT16 failed: expression is not uint16_t");        \
-  } while (0)
-
-#define gen_status_C(v)                                                        \
-  ({                                                                           \
-    ASSERT_UINT16(v);                                                          \
-    gen_flag(v > 0x00FF);                                                      \
-  })
-#define gen_status_Z(v) (gen_flag(((byte_t)(v)) == 0))
-#define gen_status_N(v) (gen_flag(is_byte_neg((byte_t)(v))))
 
 static bool IMP() {
   // looks like it combined IMP and Accum addressing modes.
@@ -84,7 +83,7 @@ static bool REL() {
   // range: -128 ~ 127
   // if the readed rel address byte is negative,
   // we need to extend the signal bit
-  if (is_byte_neg(addr_rel))
+  if (is_byte_neg((byte_t)addr_rel))
     addr_rel |= 0xFF00;
   return false;
 }
@@ -126,7 +125,6 @@ static bool ABY() {
 }
 // indirect addressing
 static bool IND() {
-
   byte_t lo = bus_read(cpu.PC++);
   byte_t hi = bus_read(cpu.PC++);
   addr_t addr = comb_addr(hi, lo);
@@ -183,7 +181,7 @@ static bool ADC() {
 
   uint16_t result = (uint16_t)cpu.A + (uint16_t)fetched + (uint16_t)cpu.P.C;
   cpu.P.C = gen_status_C(result);
-  cpu.P.Z = gen_status_Z(result);
+  cpu.P.Z = gen_status_Z((byte_t)result);
 
   // ref: olc6502 ADC comment
   // To assist us, the 6502 can set the overflow flag, if the result of the
@@ -221,7 +219,7 @@ static bool ADC() {
   uint16_t tmp1 = ~((uint16_t)cpu.A ^ (uint16_t)fetched);
   uint16_t tmp2 = (uint16_t)cpu.A ^ (uint16_t)result;
   cpu.P.V = gen_flag((tmp1 & tmp2) & 0x0080);
-  cpu.P.N = gen_status_N(result);
+  cpu.P.N = gen_status_N((byte_t)result);
   cpu.A = result & 0x00FF;
   return true;
 }
@@ -242,15 +240,15 @@ static bool SBC() {
   uint16_t M = ((uint16_t)fetched) ^ 0x00FF;
   uint16_t result = (uint16_t)cpu.A + (uint16_t)M + (uint16_t)cpu.P.C;
   cpu.P.C = gen_status_C(result);
-  cpu.P.Z = gen_status_Z(result);
+  cpu.P.Z = gen_status_Z((byte_t)result);
   // Overflow: (+)A - (+)M = (-)
   //           (-)A - (-)M = (+)
   // SetFlag(V, (temp ^ (uint16_t)a) & (temp ^ value) & 0x0080);
   uint16_t tmp1 = (uint16_t)cpu.A ^ result;
   uint16_t tmp2 = (uint16_t)M ^ result;
   cpu.P.V = gen_flag((tmp1 & tmp2) & 0x0080);
-  cpu.P.N = gen_status_N(result);
-  cpu.A = result & 0x00FF;
+  cpu.P.N = gen_status_N((byte_t)result);
+  cpu.A = (byte_t)result;
   return true;
 }
 
@@ -262,6 +260,7 @@ static bool AND() {
   cpu.P.N = gen_status_N(cpu.A);
   return true;
 }
+
 static bool ASL();
 // branch if Carry clear
 static bool BCC() {
@@ -425,10 +424,11 @@ static bool ROR();
 static bool RTI() {
   cpu_status_byte = bus_read(stack_base + (++cpu.STKP));
   cpu.P.B = 0;
-  // WARN: __unused__ should be always 1, but olc6502 just reset it, that may be
-  // wrong implementation.
-  addr_t lo = (addr_t)bus_read(stack_base + (++cpu.STKP));
-  addr_t hi = (addr_t)bus_read(stack_base + (++cpu.STKP));
+  // WARN: bit 5 reads back as 1 on a 6502; keep internal copy consistent
+  // but olc6502 just reset it
+  cpu.P.__unused__ = 1;
+  byte_t lo = bus_read(stack_base + (++cpu.STKP));
+  byte_t hi = bus_read(stack_base + (++cpu.STKP));
   cpu.PC = comb_addr(hi, lo);
   return 0;
 }
