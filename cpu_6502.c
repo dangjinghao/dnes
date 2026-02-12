@@ -755,7 +755,7 @@ void cpu_reset() {
   cpu.P.__unused__ = 1;
   // WARN: olc6502 doesn't set this
   cpu.P.I = 1;
-
+  cpu.P.D = 0;
   addr_abs = 0xFFFC;
   byte_t lo = bus_read(addr_abs);
   byte_t hi = bus_read(addr_abs + 1);
