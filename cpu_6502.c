@@ -20,7 +20,7 @@ static struct {
   addr_t PC;
 } cpu;
 
-const static addr_t stack_base = 0x0100;
+static const addr_t stack_base = 0x0100;
 
 static addr_t addr_abs;
 static addr_t addr_rel;
@@ -397,7 +397,7 @@ static inline addr_t comb_addr(byte_t hi, byte_t lo) {
 
 static inline bool is_byte_neg(byte_t B) { return (B & 0x80) != 0; }
 
-static inline byte_t addr_hi(addr_t a) { return a >> 8; }
+static inline byte_t addr_hi(addr_t a) { return (byte_t)(a >> 8); }
 static inline byte_t addr_lo(addr_t a) { return (byte_t)(a & 0xFF); }
 
 static inline bool gen_flag(uint16_t f) { return !!f; }
@@ -566,7 +566,7 @@ static bool ADC() {
   // get the data
   fetch();
 
-  uint16_t result = (uint16_t)cpu.A + (uint16_t)fetched + (uint16_t)cpu.P.C;
+  uint16_t result = (uint16_t)((uint16_t)cpu.A + (uint16_t)fetched + (uint16_t)cpu.P.C);
   cpu.P.C = gen_status_C(result);
   cpu.P.Z = gen_status_Z((byte_t)result);
 
@@ -625,7 +625,7 @@ static bool SBC() {
   fetch();
   // ~M
   uint16_t M = ((uint16_t)fetched) ^ 0x00FF;
-  uint16_t result = (uint16_t)cpu.A + (uint16_t)M + (uint16_t)cpu.P.C;
+  uint16_t result = (uint16_t)((uint16_t)cpu.A + (uint16_t)M + (uint16_t)cpu.P.C);
   cpu.P.C = gen_status_C(result);
   cpu.P.Z = gen_status_Z((byte_t)result);
   // Overflow: (+)A - (+)M = (-)
@@ -988,7 +988,7 @@ static bool ROL() {
 static bool ROR() {
   fetch();
   uint16_t result = (uint16_t)(cpu.P.C << 7 | fetched >> 1);
-  cpu.P.C = fetched & 0x01;
+  cpu.P.C = (byte_t)(fetched & 0x01);
   cpu.P.Z = gen_status_Z((byte_t)result);
   cpu.P.N = gen_status_N((byte_t)result);
   if (inst_lookup[opcode].addr_mode == IMP)
