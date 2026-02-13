@@ -1,6 +1,7 @@
 #ifndef _DNES_H
 #define _DNES_H
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 // The width of address is 16b
 typedef uint16_t addr_t;
@@ -30,6 +31,9 @@ extern byte_t ram[RAM_SIZE];
 /// utils.c
 //
 
-void errorf(char *fmt, ...) __attribute__((format(printf, 1, 2)));
+// format: `<file_name>:<line_number> message`
+void serrorf(char *file_name, size_t line, char *fmt, ...)
+    __attribute__((format(printf, 3, 4)));
+#define errorf(fmt, ...) serrorf(__FILE_NAME__, __LINE__, fmt, __VA_ARGS__)
 
 #endif

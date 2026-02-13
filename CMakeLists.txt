@@ -7,6 +7,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(SRC_FILES
     cpu_6502.c
+    bus.c
+    ram.c
+    utils.c
 )
 
 add_executable(dnes ${SRC_FILES})

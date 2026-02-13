@@ -430,85 +430,11 @@ static inline addr_t pop_pc() {
   return comb_addr(hi, lo);
 }
 
-void cpu_clock() {
-  if (cycles == 0) {
-    // previous inst is processed, fetch new one
-    opcode = bus_read(cpu.PC++);
-    struct inst i = inst_lookup[opcode];
-    cycles = i.cycles;
-
-    bool additional_cycle = i.addr_mode();
-    bool require_additional_cycle = i.operate();
-    if (additional_cycle && require_additional_cycle)
-      cycles += 1;
-  }
-
-  cycles -= 1;
-}
-
 static byte_t fetch() {
   if (inst_lookup[opcode].addr_mode != IMP)
     fetched = bus_read(addr_abs);
 
   return fetched;
-}
-
-void cpu_reset() {
-  cpu.A = 0;
-  cpu.X = 0;
-  cpu.Y = 0;
-  cpu.STKP = 0xFD;
-  cpu_status_byte = 0;
-  // this unused bit should always be 1 in the datasheet
-  cpu.P.__unused__ = 1;
-  // WARN: olc6502 doesn't set this
-  cpu.P.I = 1;
-  cpu.P.D = 0;
-  addr_abs = 0xFFFC;
-  byte_t lo = bus_read(addr_abs);
-  byte_t hi = bus_read(addr_abs + 1);
-  // 7 cycles in std reset manual, they are previous operations.
-
-  // 8th cycle, JMP to the address
-  cpu.PC = comb_addr(hi, lo);
-
-  addr_rel = 0x0000;
-  addr_abs = 0x0000;
-  fetched = 0x00;
-
-  cycles = 8;
-}
-void cpu_irq() {
-  if (cpu.P.I) {
-    return;
-  }
-  push_pc();
-
-  cpu.P.B = 0;
-  // bit 5 reads back as 1 on a 6502; keep stack copy consistent
-  cpu.P.__unused__ = 1;
-  push_status();
-  // WARN: wrong implementation in olc6502, the I flag should be set after push
-  cpu.P.I = 1;
-  addr_abs = 0xFFFE;
-  byte_t lo = bus_read(addr_abs);
-  byte_t hi = bus_read(addr_abs + 1);
-  cpu.PC = comb_addr(hi, lo);
-  cycles = 7;
-}
-void cpu_nmi() {
-  push_pc();
-  cpu.P.B = 0;
-  // bit 5 reads back as 1 on a 6502; keep stack copy consistent
-  cpu.P.__unused__ = 1;
-  push_status();
-  // WARN: wrong implementation in olc6502, the I flag should be set after push
-  cpu.P.I = 1;
-  addr_abs = 0xFFFA;
-  byte_t lo = bus_read(addr_abs);
-  byte_t hi = bus_read(addr_abs + 1);
-  cpu.PC = comb_addr(hi, lo);
-  cycles = 8;
 }
 
 /// Addressing Modes
@@ -1149,3 +1075,78 @@ static bool XXX() {
   errorf("Catch illegal opcode: %02X\n", opcode);
   return false;
 }
+
+void cpu_clock() {
+  if (cycles == 0) {
+    // previous inst is processed, fetch new one
+    opcode = bus_read(cpu.PC++);
+    struct inst i = inst_lookup[opcode];
+    cycles = i.cycles;
+
+    bool additional_cycle = i.addr_mode();
+    bool require_additional_cycle = i.operate();
+    if (additional_cycle && require_additional_cycle)
+      cycles += 1;
+  }
+
+  cycles -= 1;
+}
+
+void cpu_reset() {
+  cpu.A = 0;
+  cpu.X = 0;
+  cpu.Y = 0;
+  cpu.STKP = 0xFD;
+  cpu_status_byte = 0;
+  // this unused bit should always be 1 in the datasheet
+  cpu.P.__unused__ = 1;
+  // WARN: olc6502 doesn't set this
+  cpu.P.I = 1;
+  cpu.P.D = 0;
+  addr_abs = 0xFFFC;
+  byte_t lo = bus_read(addr_abs);
+  byte_t hi = bus_read(addr_abs + 1);
+  // 7 cycles in std reset manual, they are previous operations.
+
+  // 8th cycle, JMP to the address
+  cpu.PC = comb_addr(hi, lo);
+
+  addr_rel = 0x0000;
+  addr_abs = 0x0000;
+  fetched = 0x00;
+
+  cycles = 8;
+}
+void cpu_irq() {
+  if (cpu.P.I) {
+    return;
+  }
+  push_pc();
+
+  cpu.P.B = 0;
+  // bit 5 reads back as 1 on a 6502; keep stack copy consistent
+  cpu.P.__unused__ = 1;
+  push_status();
+  // WARN: wrong implementation in olc6502, the I flag should be set after push
+  cpu.P.I = 1;
+  addr_abs = 0xFFFE;
+  byte_t lo = bus_read(addr_abs);
+  byte_t hi = bus_read(addr_abs + 1);
+  cpu.PC = comb_addr(hi, lo);
+  cycles = 7;
+}
+void cpu_nmi() {
+  push_pc();
+  cpu.P.B = 0;
+  // bit 5 reads back as 1 on a 6502; keep stack copy consistent
+  cpu.P.__unused__ = 1;
+  push_status();
+  // WARN: wrong implementation in olc6502, the I flag should be set after push
+  cpu.P.I = 1;
+  addr_abs = 0xFFFA;
+  byte_t lo = bus_read(addr_abs);
+  byte_t hi = bus_read(addr_abs + 1);
+  cpu.PC = comb_addr(hi, lo);
+  cycles = 8;
+}
+
