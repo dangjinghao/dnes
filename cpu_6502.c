@@ -103,14 +103,15 @@ static bool TYA();
 static bool XXX();
 
 struct inst {
-  char *name;
+  const char *op_name;
   bool (*operate)();
+  const char *addr_mode_name;
   bool (*addr_mode)();
   byte_t cycles;
 };
 
-#define GEN_INST(OP, AM, CY) {#OP, OP, AM, CY}
-#define GEN_XXX {"???", XXX, IMP, 2}
+#define GEN_INST(OP, AM, CY) {#OP, OP, #AM, AM, CY}
+#define GEN_XXX {"???", XXX, "IMP", IMP, 2}
 
 static struct inst inst_lookup[] = {
     // 00 ~ 0F
@@ -566,7 +567,8 @@ static bool ADC() {
   // get the data
   fetch();
 
-  uint16_t result = (uint16_t)((uint16_t)cpu.A + (uint16_t)fetched + (uint16_t)cpu.P.C);
+  uint16_t result =
+      (uint16_t)((uint16_t)cpu.A + (uint16_t)fetched + (uint16_t)cpu.P.C);
   cpu.P.C = gen_status_C(result);
   cpu.P.Z = gen_status_Z((byte_t)result);
 
@@ -625,7 +627,8 @@ static bool SBC() {
   fetch();
   // ~M
   uint16_t M = ((uint16_t)fetched) ^ 0x00FF;
-  uint16_t result = (uint16_t)((uint16_t)cpu.A + (uint16_t)M + (uint16_t)cpu.P.C);
+  uint16_t result =
+      (uint16_t)((uint16_t)cpu.A + (uint16_t)M + (uint16_t)cpu.P.C);
   cpu.P.C = gen_status_C(result);
   cpu.P.Z = gen_status_Z((byte_t)result);
   // Overflow: (+)A - (+)M = (-)
@@ -1100,7 +1103,7 @@ void cpu_reset() {
   cpu_status_byte = 0;
   // this unused bit should always be 1 in the datasheet
   cpu.P.__unused__ = 1;
-  // WARN: olc6502 doesn't set this
+  // WARN: olc6502 doesn't set I status
   cpu.P.I = 1;
   cpu.P.D = 0;
   addr_abs = 0xFFFC;
@@ -1150,3 +1153,9 @@ void cpu_nmi() {
   cycles = 8;
 }
 
+void cpu_disasm_log(addr_t st, addr_t ed) {
+  // TODO: impl
+  return;
+}
+
+bool cpu_inst_done() { return cycles == 0; }
