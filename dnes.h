@@ -14,6 +14,14 @@ void bus_write(addr_t addr, byte_t data);
 byte_t bus_read(addr_t addr);
 byte_t bus_read_only(addr_t addr);
 
+struct bus_device {
+  void (*write)(addr_t addr, byte_t data);
+  byte_t (*read)(addr_t addr, bool read_only);
+};
+
+void bus_register(addr_t start, addr_t end, struct bus_device *dev);
+void bus_ready();
+
 /// cpu_6502.c
 //
 
