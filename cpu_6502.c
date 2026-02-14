@@ -1153,9 +1153,9 @@ void cpu_nmi() {
   cycles = 8;
 }
 
-void cpu_disasm_log(addr_t st, addr_t ed) {
-  // TODO: impl
-  return;
-}
+// void cpu_disasm_log(addr_t st, addr_t ed) {
+//   // TODO: impl
+//   return;
+// }
 
 bool cpu_inst_done() { return cycles == 0; }
