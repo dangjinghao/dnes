@@ -10,21 +10,30 @@ typedef uint8_t byte_t;
 /// bus.c
 //
 
-void bus_write(addr_t addr, byte_t data);
-byte_t bus_read(addr_t addr);
-byte_t bus_read_only(addr_t addr);
-
-struct bus_device {
+struct bus_regparam {
   void (*write)(addr_t addr, byte_t data);
   byte_t (*read)(addr_t addr, bool read_only);
 };
+struct bus_device {
+  addr_t start, end;
+  struct bus_regparam device;
+};
+struct bus {
+  struct bus_device devices[16];
+  size_t dev_count;
+};
 
-void bus_register(addr_t start, addr_t end, struct bus_device *dev);
-void bus_ready();
+void bus_write(struct bus *bus, addr_t addr, byte_t data);
+byte_t bus_read(struct bus *bus, addr_t addr);
+byte_t bus_read_only(struct bus *bus, addr_t addr);
+void bus_register(struct bus *bus, addr_t start, addr_t end,
+                  struct bus_regparam *p);
+void bus_ready(struct bus *bus);
 
 /// cpu_6502.c
 //
 
+void cpu_register(struct bus *bus);
 void cpu_clock();
 void cpu_reset();
 void cpu_irq();
@@ -34,7 +43,8 @@ bool cpu_inst_done();
 
 /// ram.c
 //
-void ram_register();
+
+void ram_register(struct bus *bus);
 
 /// utils.c
 //

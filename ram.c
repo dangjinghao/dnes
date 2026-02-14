@@ -15,7 +15,7 @@ static byte_t ram_read(addr_t addr, bool read_only) {
   return ram[ram_real_addr(addr)];
 }
 
-void ram_register() {
-  struct bus_device param = {.read = ram_read, .write = ram_write};
-  bus_register(0x0000, 0x1FFF, &param);
+void ram_register(struct bus *bus) {
+  struct bus_regparam param = {.read = ram_read, .write = ram_write};
+  bus_register(bus, 0x0000, 0x1FFF, &param);
 }

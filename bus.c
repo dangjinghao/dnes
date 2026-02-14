@@ -3,20 +3,13 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-static struct bus_devi {
-  addr_t start, end;
-  struct bus_device device;
-} devices[32];
-
-static size_t dev_count = 0;
-
-static bool bus_valid() {
-  if (dev_count <= 1) {
+static bool bus_valid(struct bus *bus) {
+  if (bus->dev_count <= 1) {
     return true;
   }
 
-  for (size_t i = 0; i + 1 < dev_count; i++) {
-    if (devices[i].end >= devices[i + 1].start) {
+  for (size_t i = 0; i + 1 < bus->dev_count; i++) {
+    if (bus->devices[i].end >= bus->devices[i + 1].start) {
       return false;
     }
   }
@@ -24,8 +17,8 @@ static bool bus_valid() {
 }
 
 static int bus_addr_cmp(const void *a, const void *b) {
-  const struct bus_devi *da = a;
-  const struct bus_devi *db = b;
+  const struct bus_device *da = a;
+  const struct bus_device *db = b;
   if (da->start < db->start) {
     return -1;
   }
@@ -35,35 +28,36 @@ static int bus_addr_cmp(const void *a, const void *b) {
   return 0;
 }
 
-static struct bus_devi *bus_fetch_device(addr_t addr) {
-  for (size_t i = 0; i < dev_count; i++) {
-    if (devices[i].start <= addr && devices[i].end >= addr) {
-      return &devices[i];
+static struct bus_device *bus_fetch_device(struct bus *bus, addr_t addr) {
+  for (size_t i = 0; i < bus->dev_count; i++) {
+    if (bus->devices[i].start <= addr && bus->devices[i].end >= addr) {
+      return &bus->devices[i];
     }
   }
   return NULL;
 }
 
-void bus_register(addr_t start, addr_t end, struct bus_device *dev) {
+void bus_register(struct bus *bus, addr_t start, addr_t end,
+                  struct bus_regparam *p) {
   assert(start <= end);
-  assert(dev);
-  assert(dev_count < sizeof(devices) / sizeof(devices[0]) &&
-         "Too many devices registered.");
-  devices[dev_count].device = *dev;
-  devices[dev_count].start = start;
-  devices[dev_count].end = end;
-  dev_count += 1;
+  assert(p);
+  assert(bus->dev_count < sizeof(bus->devices) / sizeof(bus->devices[0]) &&
+         "Too many bus->devices registered.");
+  bus->devices[bus->dev_count].device = *p;
+  bus->devices[bus->dev_count].start = start;
+  bus->devices[bus->dev_count].end = end;
+  bus->dev_count += 1;
 }
 
-void bus_ready() {
+void bus_ready(struct bus *bus) {
   // sort the registered addresses
-  qsort(devices, dev_count, sizeof(devices[0]), bus_addr_cmp);
+  qsort(bus->devices, bus->dev_count, sizeof(bus->devices[0]), bus_addr_cmp);
   // check whether those addresses conflict
-  assert(bus_valid());
+  assert(bus_valid(bus));
 }
 
-void bus_write(addr_t addr, byte_t data) {
-  struct bus_devi *d = bus_fetch_device(addr);
+void bus_write(struct bus *bus, addr_t addr, byte_t data) {
+  struct bus_device *d = bus_fetch_device(bus, addr);
   if (!d) {
     errorf("Failed to write data %#02X at invalid address %#04X: Can't found "
            "valid device\n",
@@ -79,8 +73,8 @@ void bus_write(addr_t addr, byte_t data) {
   d->device.write(addr, data);
 }
 
-byte_t bus_read(addr_t addr) {
-  struct bus_devi *d = bus_fetch_device(addr);
+byte_t bus_read(struct bus *bus, addr_t addr) {
+  struct bus_device *d = bus_fetch_device(bus, addr);
   if (!d) {
     errorf(
         "Failed to read from invalid address %#04X: Can't found valid device\n",
@@ -96,8 +90,8 @@ byte_t bus_read(addr_t addr) {
   return d->device.read(addr, false);
 }
 
-byte_t bus_read_only(addr_t addr) {
-  struct bus_devi *d = bus_fetch_device(addr);
+byte_t bus_read_only(struct bus *bus, addr_t addr) {
+  struct bus_device *d = bus_fetch_device(bus, addr);
   if (!d) {
     errorf("Failed to read from invalid address: %#04X\n", addr);
     return 0x00;

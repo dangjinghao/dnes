@@ -35,7 +35,6 @@ byte_t fake_rom_read(addr_t addr, bool read_only) {
   return data[addr - 0x8000];
 }
 
-
 static addr_t fake_start_addr;
 byte_t fake_start_read(addr_t addr, bool read_only) {
   (void)read_only;
@@ -47,22 +46,24 @@ byte_t fake_start_read(addr_t addr, bool read_only) {
     return 0;
 }
 
-void fake_start_register(addr_t addr) {
-  struct bus_device param = {.read = fake_start_read, .write = NULL};
+void fake_start_register(struct bus *bus, addr_t addr) {
+  struct bus_regparam param = {.read = fake_start_read, .write = NULL};
   fake_start_addr = addr;
-  bus_register(0xFFFC, 0xFFFD, &param);
+  bus_register(bus, 0xFFFC, 0xFFFD, &param);
 }
 
-void fake_rom_register() {
-  struct bus_device param = {.read = fake_rom_read, .write = NULL};
-  bus_register(0x8000, 0x801B, &param);
+void fake_rom_register(struct bus *bus) {
+  struct bus_regparam param = {.read = fake_rom_read, .write = NULL};
+  bus_register(bus, 0x8000, 0x801B, &param);
 }
 
 int main() {
-  fake_start_register(0x8000);
-  fake_rom_register();
-  ram_register();
-  bus_ready();
+  struct bus mbus;
+  fake_start_register(&mbus, 0x8000);
+  fake_rom_register(&mbus);
+  ram_register(&mbus);
+  bus_ready(&mbus);
+  cpu_register(&mbus);
   cpu_reset();
   while (true) {
     cpu_clock();
