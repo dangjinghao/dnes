@@ -34,9 +34,7 @@ bool cpu_inst_done();
 
 /// ram.c
 //
-#define RAM_SIZE (64 * 1024) // 64KiB
-
-extern byte_t ram[RAM_SIZE];
+void ram_register();
 
 /// utils.c
 //
