@@ -1077,7 +1077,7 @@ static bool TYA() {
 }
 // Invalid instruction trap
 static bool XXX() {
-  errorf("Catch illegal cpu.opcode: %02X\n", cpu.opcode);
+  errorfln("Catch illegal cpu.opcode: %02X", cpu.opcode);
   return false;
 }
 
@@ -1097,7 +1097,7 @@ void cpu_clock() {
   cpu.cycles -= 1;
 }
 
-void cpu_register(struct bus *bus) { cpu.bus = bus; }
+void cpu_mount_mbus(struct bus *bus) { cpu.bus = bus; }
 
 void cpu_reset() {
   cpu.A = 0;

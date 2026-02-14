@@ -59,14 +59,14 @@ void bus_ready(struct bus *bus) {
 void bus_write(struct bus *bus, addr_t addr, byte_t data) {
   struct bus_device *d = bus_fetch_device(bus, addr);
   if (!d) {
-    errorf("Failed to write data %#02X at invalid address %#04X: Can't found "
-           "valid device\n",
+    errorfln("Failed to write data %#02X at invalid address %#04X: Can't found "
+           "valid device",
            data, addr);
     return;
   }
   if (!d->device.write) {
-    errorf("Failed to write data %#02X at invalid address %#04X: this device "
-           "isn't writeable\n",
+    errorfln("Failed to write data %#02X at invalid address %#04X: this device "
+           "isn't writeable",
            data, addr);
     return;
   }
@@ -76,14 +76,14 @@ void bus_write(struct bus *bus, addr_t addr, byte_t data) {
 byte_t bus_read(struct bus *bus, addr_t addr) {
   struct bus_device *d = bus_fetch_device(bus, addr);
   if (!d) {
-    errorf(
-        "Failed to read from invalid address %#04X: Can't found valid device\n",
+    errorfln(
+        "Failed to read from invalid address %#04X: Can't found valid device",
         addr);
     return 0x00;
   }
   if (!d->device.read) {
-    errorf("Failed to read from invalid address %#04X: this device "
-           "isn't readable\n",
+    errorfln("Failed to read from invalid address %#04X: this device "
+           "isn't readable",
            addr);
     return 0x00;
   }
@@ -93,7 +93,7 @@ byte_t bus_read(struct bus *bus, addr_t addr) {
 byte_t bus_read_only(struct bus *bus, addr_t addr) {
   struct bus_device *d = bus_fetch_device(bus, addr);
   if (!d) {
-    errorf("Failed to read from invalid address: %#04X\n", addr);
+    errorfln("Failed to read from invalid address: %#04X", addr);
     return 0x00;
   }
   return d->device.read(addr, true);

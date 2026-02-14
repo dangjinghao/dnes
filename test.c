@@ -58,12 +58,19 @@ void fake_rom_register(struct bus *bus) {
 }
 
 int main() {
-  struct bus mbus;
+  static struct bus mbus, pbus;
   fake_start_register(&mbus, 0x8000);
   fake_rom_register(&mbus);
   ram_register(&mbus);
+  cart_register_mbus(&mbus);
+  ppu_register_mbus(&mbus);
   bus_ready(&mbus);
-  cpu_register(&mbus);
+  cpu_mount_mbus(&mbus);
+
+  cart_register_pbus(&pbus);
+  bus_ready(&pbus);
+  ppu_mount_pbus(&pbus);
+
   cpu_reset();
   while (true) {
     cpu_clock();

@@ -7,6 +7,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(SRC_FILES
     cpu_6502.c
+    ppu_2c02.c
+    cartridge.c
     bus.c
     ram.c
     utils.c

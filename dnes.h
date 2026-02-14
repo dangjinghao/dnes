@@ -33,7 +33,7 @@ void bus_ready(struct bus *bus);
 /// cpu_6502.c
 //
 
-void cpu_register(struct bus *bus);
+void cpu_mount_mbus(struct bus *bus);
 void cpu_clock();
 void cpu_reset();
 void cpu_irq();
@@ -46,6 +46,18 @@ bool cpu_inst_done();
 
 void ram_register(struct bus *bus);
 
+/// ppu_2c02.c
+//
+
+void ppu_register_mbus(struct bus *mbus);
+void ppu_mount_pbus(struct bus *pbus);
+
+/// cartridge.c
+//
+
+void cart_register_mbus(struct bus *mbus);
+void cart_register_pbus(struct bus *pbus);
+
 /// utils.c
 //
 
@@ -53,5 +65,11 @@ void ram_register(struct bus *bus);
 void serrorf(char *file_name, size_t line, char *fmt, ...)
     __attribute__((format(printf, 3, 4)));
 #define errorf(fmt, ...) serrorf(__FILE_NAME__, __LINE__, fmt, __VA_ARGS__)
+#define errorfln(fmt, ...) serrorf(__FILE_NAME__, __LINE__, fmt "\n", __VA_ARGS__)
+/// dnes.c
+//
+
+void mbus_ready();
+void pbus_ready();
 
 #endif
