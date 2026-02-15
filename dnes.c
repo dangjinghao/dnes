@@ -30,6 +30,8 @@ void dnes_reset() {
   system_clock = 0;
 }
 
-void dnes_insert_cartridge() {
-  // TODO
+void dnes_insert_cartridge(char *rom_path) {
+  cart_load(rom_path);
+  mbus_ready();
+  pbus_ready();
 }

@@ -56,8 +56,17 @@ void ppu_mount_pbus(struct bus *pbus);
 /// cartridge.c
 //
 
+enum mirroring_mode {
+  M_HORIZONTAL,
+  M_VERTICAL,
+  M_ONESCREEN_LO,
+  M_ONESCREEN_HI
+};
+
 void cart_register_mbus(struct bus *mbus);
 void cart_register_pbus(struct bus *pbus);
+void cart_load(const char *rom_path);
+void cart_pop();
 
 /// utils.c
 //
