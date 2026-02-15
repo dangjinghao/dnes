@@ -2,9 +2,9 @@
 
 void mbus_ready() {
   static struct bus mbus;
+  ppu_register_mbus(&mbus);
   ram_register(&mbus);
   cart_register_mbus(&mbus);
-  ppu_register_mbus(&mbus);
   // TODO: apu_register(&mbus);
   // TODO: controls
   // TODO: stuff...
