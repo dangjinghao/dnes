@@ -65,11 +65,15 @@ void cart_register_pbus(struct bus *pbus);
 void serrorf(char *file_name, size_t line, char *fmt, ...)
     __attribute__((format(printf, 3, 4)));
 #define errorf(fmt, ...) serrorf(__FILE_NAME__, __LINE__, fmt, __VA_ARGS__)
-#define errorfln(fmt, ...) serrorf(__FILE_NAME__, __LINE__, fmt "\n", __VA_ARGS__)
+#define errorfln(fmt, ...)                                                     \
+  serrorf(__FILE_NAME__, __LINE__, fmt "\n", __VA_ARGS__)
 /// dnes.c
 //
 
 void mbus_ready();
 void pbus_ready();
+
+void dnes_reset();
+void dnes_clock();
 
 #endif

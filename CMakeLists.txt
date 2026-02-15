@@ -9,6 +9,7 @@ set(SRC_FILES
     cpu_6502.c
     ppu_2c02.c
     cartridge.c
+    dnes.c
     bus.c
     ram.c
     utils.c

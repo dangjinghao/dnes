@@ -3,6 +3,9 @@
 
 static struct bus *pbus;
 
+static byte_t name_table[2][1024];
+static byte_t palette_table[32];
+
 static inline addr_t ppu_mbus_real_addr(addr_t addr) { return (addr & 0x0007); }
 
 static byte_t ppu_mbus_read(addr_t addr, bool read_only) {

@@ -20,3 +20,16 @@ void pbus_ready() {
   bus_ready(&pbus);
   ppu_mount_pbus(&pbus);
 }
+
+static size_t system_clock = 0;
+
+void dnes_clock() { system_clock += 1; }
+
+void dnes_reset() {
+  cpu_reset();
+  system_clock = 0;
+}
+
+void dnes_insert_cartridge() {
+  // TODO
+}
