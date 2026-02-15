@@ -67,7 +67,22 @@ void serrorf(char *file_name, size_t line, char *fmt, ...)
     __attribute__((format(printf, 3, 4)));
 #define errorf(fmt, ...) serrorf(__FILE_NAME__, __LINE__, fmt, __VA_ARGS__)
 #define errorfln(fmt, ...)                                                     \
-  serrorf(__FILE_NAME__, __LINE__, fmt "\n", __VA_ARGS__)
+  serrorf(__FILE_NAME__, __LINE__, fmt "\n", ##__VA_ARGS__)
+
+#define TODO() assert(0 && "todo")
+
+// mapper_*.c
+
+struct mapper {
+  size_t (*map_mbus_read)(addr_t addr);
+  size_t (*map_mbus_write)(addr_t addr);
+  size_t (*map_pbus_read)(addr_t addr);
+  size_t (*map_pbus_write)(addr_t addr);
+  void (*reset)();
+};
+
+struct mapper *mapper_000(byte_t prg_banks, byte_t chr_banks);
+
 /// dnes.c
 //
 
