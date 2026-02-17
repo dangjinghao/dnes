@@ -118,24 +118,27 @@ void cart_load(const char *rom_path) {
   byte_t rom_type = nes_hdr_nes_version(&hdr);
 
   switch (rom_type) {
+  case 0:
   case 1: {
     prg_banks = hdr.prg_rom_chunks;
     chr_banks = hdr.chr_rom_chunks;
     assert(chr_banks);
-    prg_memory = malloc(prg_banks * 1024 * 16 * sizeof(byte_t));
-    chr_memory = malloc(chr_banks * 1024 * 8 * sizeof(byte_t));
+    prg_memory = malloc(prg_banks * 1024 * 16);
+    chr_memory = malloc(chr_banks * 1024 * 8);
     if (fread(prg_memory, sizeof(byte_t), prg_banks * 1024 * 16, rom) !=
-        prg_banks * 1024 * 16 * sizeof(byte_t)) {
+        prg_banks * 1024 * 16) {
       errorfln("Failed to read PRG ROM data");
       exit(1);
     }
     if (fread(chr_memory, sizeof(byte_t), chr_banks * 1024 * 8, rom) !=
-        chr_banks * 1024 * 8 * sizeof(byte_t)) {
+        chr_banks * 1024 * 8) {
       errorfln("Failed to read CHR ROM data");
       exit(1);
     }
     break;
   }
+  case 2:
+  case 3:
   default:
     TODO();
   }

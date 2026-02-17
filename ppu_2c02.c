@@ -67,3 +67,5 @@ void ppu_register_mbus(struct bus *mbus) {
 }
 
 void ppu_mount_pbus(struct bus *bus) { pbus = bus; }
+
+void ppu_clock() {}

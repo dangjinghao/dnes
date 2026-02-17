@@ -52,6 +52,7 @@ void ram_register(struct bus *bus);
 
 void ppu_register_mbus(struct bus *mbus);
 void ppu_mount_pbus(struct bus *pbus);
+void ppu_clock();
 
 /// cartridge.c
 //
@@ -95,10 +96,8 @@ struct mapper *mapper_000(byte_t prg_banks, byte_t chr_banks);
 /// dnes.c
 //
 
-void mbus_ready();
-void pbus_ready();
-
 void dnes_reset();
 void dnes_clock();
+void dnes_insert_cartridge(char *rom_path);
 
 #endif
