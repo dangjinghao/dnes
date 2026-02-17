@@ -2,16 +2,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 static struct {
-  struct {
-    byte_t C : 1;          // Carry
-    byte_t Z : 1;          // Zero
-    byte_t I : 1;          // Disable Interrupts
-    byte_t D : 1;          // Decimal Mode(unused)
-    byte_t B : 1;          // Break
-    byte_t __unused__ : 1; // Unused
-    byte_t V : 1;          // Overflow
-    byte_t N : 1;          // Negative
-  } P;
+  byte_t P; // Status register
   byte_t A;
   byte_t X;
   byte_t Y;
@@ -402,9 +393,25 @@ static inline byte_t addr_lo(addr_t a) { return (byte_t)(a & 0xFF); }
 
 static inline bool gen_flag(uint16_t f) { return !!f; }
 
-#define cpu_status_byte (*(byte_t *)&cpu.P)
+enum {
+  FLAG_C = 1 << 0,
+  FLAG_Z = 1 << 1,
+  FLAG_I = 1 << 2,
+  FLAG_D = 1 << 3,
+  FLAG_B = 1 << 4,
+  FLAG_U = 1 << 5,
+  FLAG_V = 1 << 6,
+  FLAG_N = 1 << 7,
+};
 
-static_assert(sizeof(cpu.P) == 1, "Expected cpu status length: 1Byte");
+static inline bool cpu_get_flag(byte_t flag) { return (cpu.P & flag) != 0; }
+
+static inline void cpu_set_flag(byte_t flag, bool v) {
+  if (v)
+    cpu.P |= flag;
+  else
+    cpu.P &= (byte_t)~flag;
+}
 
 static inline bool gen_status_C(uint16_t v) { return gen_flag(v > 0x00FF); }
 
@@ -420,7 +427,7 @@ static inline void push_pc() {
   push_byte(addr_lo(cpu.PC));
 }
 
-static inline void push_status() { push_byte(cpu_status_byte); }
+static inline void push_status() { push_byte(cpu.P); }
 
 static inline byte_t pop_byte() {
   return bus_read(cpu.bus, stack_base + (++cpu.STKP));
@@ -563,15 +570,15 @@ static bool IZY() {
 
 // Addition with carry bit
 static bool ADC() {
-  assert(cpu.P.D == 0);
+  assert(!cpu_get_flag(FLAG_D));
 
   // get the data
   fetch();
 
-  uint16_t result =
-      (uint16_t)((uint16_t)cpu.A + (uint16_t)cpu.fetched + (uint16_t)cpu.P.C);
-  cpu.P.C = gen_status_C(result);
-  cpu.P.Z = gen_status_Z((byte_t)result);
+  uint16_t result = (uint16_t)((uint16_t)cpu.A + (uint16_t)cpu.fetched +
+                               (uint16_t)cpu_get_flag(FLAG_C));
+  cpu_set_flag(FLAG_C, gen_status_C(result));
+  cpu_set_flag(FLAG_Z, gen_status_Z((byte_t)result));
 
   // ref: olc6502 ADC comment
   // To assist us, the 6502 can set the overflow flag, if the result of the
@@ -608,8 +615,8 @@ static bool ADC() {
   //            ((uint16_t)a ^ (uint16_t)temp)) & 0x0080);
   uint16_t tmp1 = ~((uint16_t)cpu.A ^ (uint16_t)cpu.fetched);
   uint16_t tmp2 = (uint16_t)cpu.A ^ (uint16_t)result;
-  cpu.P.V = gen_flag((tmp1 & tmp2) & 0x0080);
-  cpu.P.N = gen_status_N((byte_t)result);
+  cpu_set_flag(FLAG_V, gen_flag((tmp1 & tmp2) & 0x0080));
+  cpu_set_flag(FLAG_N, gen_status_N((byte_t)result));
   cpu.A = (byte_t)result;
   return true;
 }
@@ -624,21 +631,21 @@ static bool ADC() {
 //   = A + ~M + C
 // A = A + ~M + C
 static bool SBC() {
-  assert(cpu.P.D == 0);
+  assert(!cpu_get_flag(FLAG_D));
   fetch();
   // ~M
   uint16_t M = ((uint16_t)cpu.fetched) ^ 0x00FF;
-  uint16_t result =
-      (uint16_t)((uint16_t)cpu.A + (uint16_t)M + (uint16_t)cpu.P.C);
-  cpu.P.C = gen_status_C(result);
-  cpu.P.Z = gen_status_Z((byte_t)result);
+  uint16_t result = (uint16_t)((uint16_t)cpu.A + (uint16_t)M +
+                               (uint16_t)cpu_get_flag(FLAG_C));
+  cpu_set_flag(FLAG_C, gen_status_C(result));
+  cpu_set_flag(FLAG_Z, gen_status_Z((byte_t)result));
   // Overflow: (+)A - (+)M = (-)
   //           (-)A - (-)M = (+)
   // SetFlag(V, (temp ^ (uint16_t)a) & (temp ^ value) & 0x0080);
   uint16_t tmp1 = (uint16_t)cpu.A ^ result;
   uint16_t tmp2 = (uint16_t)M ^ result;
-  cpu.P.V = gen_flag((tmp1 & tmp2) & 0x0080);
-  cpu.P.N = gen_status_N((byte_t)result);
+  cpu_set_flag(FLAG_V, gen_flag((tmp1 & tmp2) & 0x0080));
+  cpu_set_flag(FLAG_N, gen_status_N((byte_t)result));
   cpu.A = (byte_t)result;
   return true;
 }
@@ -647,17 +654,17 @@ static bool SBC() {
 static bool AND() {
   fetch();
   cpu.A &= cpu.fetched;
-  cpu.P.Z = gen_status_Z(cpu.A);
-  cpu.P.N = gen_status_N(cpu.A);
+  cpu_set_flag(FLAG_Z, gen_status_Z(cpu.A));
+  cpu_set_flag(FLAG_N, gen_status_N(cpu.A));
   return true;
 }
 
 static bool ASL() {
   fetch();
   uint16_t result = (uint16_t)(cpu.fetched << 1);
-  cpu.P.C = gen_status_C(result);
-  cpu.P.Z = gen_status_Z((byte_t)result);
-  cpu.P.N = gen_status_N((byte_t)result);
+  cpu_set_flag(FLAG_C, gen_status_C(result));
+  cpu_set_flag(FLAG_Z, gen_status_Z((byte_t)result));
+  cpu_set_flag(FLAG_N, gen_status_N((byte_t)result));
   // asm: ASL A
   if (inst_lookup[cpu.opcode].addr_mode == IMP)
     cpu.A = (byte_t)result;
@@ -668,7 +675,7 @@ static bool ASL() {
 }
 // branch if Carry clear
 static bool BCC() {
-  if (!cpu.P.C) {
+  if (!cpu_get_flag(FLAG_C)) {
     cpu.cycles += 1;
     cpu.addr_abs = cpu.PC + cpu.addr_rel;
     // different page branch, +1 cycle
@@ -681,7 +688,7 @@ static bool BCC() {
 }
 // branch if carry set
 static bool BCS() {
-  if (cpu.P.C) {
+  if (cpu_get_flag(FLAG_C)) {
     cpu.cycles += 1;
     cpu.addr_abs = cpu.PC + cpu.addr_rel;
     // different page branch, +1 cycle
@@ -694,7 +701,7 @@ static bool BCS() {
 }
 // branch if equal
 static bool BEQ() {
-  if (cpu.P.Z) {
+  if (cpu_get_flag(FLAG_Z)) {
     cpu.cycles += 1;
     cpu.addr_abs = cpu.PC + cpu.addr_rel;
     if (addr_hi(cpu.addr_abs) != addr_hi(cpu.PC))
@@ -708,14 +715,14 @@ static bool BEQ() {
 static bool BIT() {
   fetch();
   uint16_t result = cpu.A & cpu.fetched;
-  cpu.P.Z = gen_status_Z((byte_t)result);
-  cpu.P.N = gen_status_N((byte_t)result);
-  cpu.P.V = gen_flag(cpu.fetched & (1 << 6));
+  cpu_set_flag(FLAG_Z, gen_status_Z((byte_t)result));
+  cpu_set_flag(FLAG_N, gen_status_N((byte_t)result));
+  cpu_set_flag(FLAG_V, gen_flag(cpu.fetched & (1 << 6)));
   return false;
 }
 // branch if negative
 static bool BMI() {
-  if (cpu.P.N) {
+  if (cpu_get_flag(FLAG_N)) {
     cpu.cycles += 1;
     cpu.addr_abs = cpu.PC + cpu.addr_rel;
 
@@ -729,7 +736,7 @@ static bool BMI() {
 }
 // branch if not equal
 static bool BNE() {
-  if (!cpu.P.Z) {
+  if (!cpu_get_flag(FLAG_Z)) {
     cpu.cycles += 1;
     cpu.addr_abs = cpu.PC + cpu.addr_rel;
 
@@ -743,7 +750,7 @@ static bool BNE() {
 }
 // branch if positive
 static bool BPL() {
-  if (!cpu.P.N) {
+  if (!cpu_get_flag(FLAG_N)) {
     cpu.cycles += 1;
     cpu.addr_abs = cpu.PC + cpu.addr_rel;
 
@@ -758,12 +765,12 @@ static bool BPL() {
 static bool BRK() {
   cpu.PC += 1;
   push_pc();
-  cpu.P.B = 1;
-  cpu.P.__unused__ = 1;
+  cpu_set_flag(FLAG_B, true);
+  cpu_set_flag(FLAG_U, true);
   push_status();
-  cpu.P.B = 0;
+  cpu_set_flag(FLAG_B, false);
   // WARN: olc6502 set I status before pushing
-  cpu.P.I = 1;
+  cpu_set_flag(FLAG_I, true);
 
   byte_t lo = bus_read(cpu.bus, 0xFFFE);
   byte_t hi = bus_read(cpu.bus, 0xFFFF);
@@ -772,7 +779,7 @@ static bool BRK() {
 }
 // branch if overflow clear
 static bool BVC() {
-  if (!cpu.P.V) {
+  if (!cpu_get_flag(FLAG_V)) {
     cpu.cycles += 1;
     cpu.addr_abs = cpu.PC + cpu.addr_rel;
 
@@ -786,7 +793,7 @@ static bool BVC() {
 }
 // branch if overflow set
 static bool BVS() {
-  if (cpu.P.V) {
+  if (cpu_get_flag(FLAG_V)) {
     cpu.cycles += 1;
     cpu.addr_abs = cpu.PC + cpu.addr_rel;
 
@@ -799,43 +806,43 @@ static bool BVS() {
   return false;
 }
 static bool CLC() {
-  cpu.P.C = 0;
+  cpu_set_flag(FLAG_C, false);
   return false;
 }
 static bool CLD() {
-  cpu.P.D = 0;
+  cpu_set_flag(FLAG_D, false);
   return false;
 }
 static bool CLI() {
-  cpu.P.I = 0;
+  cpu_set_flag(FLAG_I, false);
   return false;
 }
 static bool CLV() {
-  cpu.P.V = 0;
+  cpu_set_flag(FLAG_V, false);
   return false;
 }
 static bool CMP() {
   fetch();
   uint16_t result = cpu.A - cpu.fetched;
-  cpu.P.C = cpu.A >= cpu.fetched;
-  cpu.P.Z = gen_status_Z((byte_t)result);
-  cpu.P.N = gen_status_N((byte_t)result);
+  cpu_set_flag(FLAG_C, cpu.A >= cpu.fetched);
+  cpu_set_flag(FLAG_Z, gen_status_Z((byte_t)result));
+  cpu_set_flag(FLAG_N, gen_status_N((byte_t)result));
   return true;
 }
 static bool CPX() {
   fetch();
   uint16_t result = cpu.X - cpu.fetched;
-  cpu.P.C = cpu.X >= cpu.fetched;
-  cpu.P.Z = gen_status_Z((byte_t)result);
-  cpu.P.N = gen_status_N((byte_t)result);
+  cpu_set_flag(FLAG_C, cpu.X >= cpu.fetched);
+  cpu_set_flag(FLAG_Z, gen_status_Z((byte_t)result));
+  cpu_set_flag(FLAG_N, gen_status_N((byte_t)result));
   return false;
 }
 static bool CPY() {
   fetch();
   uint16_t result = cpu.Y - cpu.fetched;
-  cpu.P.C = cpu.Y >= cpu.fetched;
-  cpu.P.Z = gen_status_Z((byte_t)result);
-  cpu.P.N = gen_status_N((byte_t)result);
+  cpu_set_flag(FLAG_C, cpu.Y >= cpu.fetched);
+  cpu_set_flag(FLAG_Z, gen_status_Z((byte_t)result));
+  cpu_set_flag(FLAG_N, gen_status_N((byte_t)result));
   return false;
 }
 
@@ -843,47 +850,47 @@ static bool DEC() {
   fetch();
   uint16_t result = cpu.fetched - 1;
   bus_write(cpu.bus, cpu.addr_abs, (byte_t)result);
-  cpu.P.Z = gen_status_Z((byte_t)result);
-  cpu.P.N = gen_status_N((byte_t)result);
+  cpu_set_flag(FLAG_Z, gen_status_Z((byte_t)result));
+  cpu_set_flag(FLAG_N, gen_status_N((byte_t)result));
   return false;
 }
 static bool DEX() {
   cpu.X -= 1;
-  cpu.P.Z = gen_status_Z(cpu.X);
-  cpu.P.N = gen_status_N(cpu.X);
+  cpu_set_flag(FLAG_Z, gen_status_Z(cpu.X));
+  cpu_set_flag(FLAG_N, gen_status_N(cpu.X));
   return false;
 }
 static bool DEY() {
   cpu.Y -= 1;
-  cpu.P.Z = gen_status_Z(cpu.Y);
-  cpu.P.N = gen_status_N(cpu.Y);
+  cpu_set_flag(FLAG_Z, gen_status_Z(cpu.Y));
+  cpu_set_flag(FLAG_N, gen_status_N(cpu.Y));
   return false;
 }
 static bool EOR() {
   fetch();
   cpu.A ^= cpu.fetched;
-  cpu.P.Z = gen_status_Z(cpu.A);
-  cpu.P.N = gen_status_N(cpu.A);
+  cpu_set_flag(FLAG_Z, gen_status_Z(cpu.A));
+  cpu_set_flag(FLAG_N, gen_status_N(cpu.A));
   return false;
 }
 static bool INC() {
   fetch();
   uint16_t result = cpu.fetched + 1;
   bus_write(cpu.bus, cpu.addr_abs, (byte_t)result);
-  cpu.P.Z = gen_status_Z((byte_t)result);
-  cpu.P.N = gen_status_N((byte_t)result);
+  cpu_set_flag(FLAG_Z, gen_status_Z((byte_t)result));
+  cpu_set_flag(FLAG_N, gen_status_N((byte_t)result));
   return false;
 }
 static bool INX() {
   cpu.X += 1;
-  cpu.P.Z = gen_status_Z(cpu.X);
-  cpu.P.N = gen_status_N(cpu.X);
+  cpu_set_flag(FLAG_Z, gen_status_Z(cpu.X));
+  cpu_set_flag(FLAG_N, gen_status_N(cpu.X));
   return false;
 }
 static bool INY() {
   cpu.Y += 1;
-  cpu.P.Z = gen_status_Z(cpu.Y);
-  cpu.P.N = gen_status_N(cpu.Y);
+  cpu_set_flag(FLAG_Z, gen_status_Z(cpu.Y));
+  cpu_set_flag(FLAG_N, gen_status_N(cpu.Y));
   return false;
 }
 static bool JMP() {
@@ -900,30 +907,30 @@ static bool JSR() {
 static bool LDA() {
   fetch();
   cpu.A = cpu.fetched;
-  cpu.P.Z = gen_status_Z(cpu.A);
-  cpu.P.N = gen_status_N(cpu.A);
+  cpu_set_flag(FLAG_Z, gen_status_Z(cpu.A));
+  cpu_set_flag(FLAG_N, gen_status_N(cpu.A));
   return true;
 }
 static bool LDX() {
   fetch();
   cpu.X = cpu.fetched;
-  cpu.P.Z = gen_status_Z(cpu.X);
-  cpu.P.N = gen_status_N(cpu.X);
+  cpu_set_flag(FLAG_Z, gen_status_Z(cpu.X));
+  cpu_set_flag(FLAG_N, gen_status_N(cpu.X));
   return true;
 }
 static bool LDY() {
   fetch();
   cpu.Y = cpu.fetched;
-  cpu.P.Z = gen_status_Z(cpu.Y);
-  cpu.P.N = gen_status_N(cpu.Y);
+  cpu_set_flag(FLAG_Z, gen_status_Z(cpu.Y));
+  cpu_set_flag(FLAG_N, gen_status_N(cpu.Y));
   return true;
 }
 static bool LSR() {
   fetch();
-  cpu.P.C = gen_flag(cpu.fetched & 0x0001);
+  cpu_set_flag(FLAG_C, gen_flag(cpu.fetched & 0x0001));
   uint16_t result = cpu.fetched >> 1;
-  cpu.P.Z = gen_status_Z((byte_t)result);
-  cpu.P.N = gen_status_N((byte_t)result);
+  cpu_set_flag(FLAG_Z, gen_status_Z((byte_t)result));
+  cpu_set_flag(FLAG_N, gen_status_N((byte_t)result));
   if (inst_lookup[cpu.opcode].addr_mode == IMP)
     cpu.A = (byte_t)result;
   else
@@ -947,8 +954,8 @@ static bool NOP() {
 static bool ORA() {
   fetch();
   cpu.A |= cpu.fetched;
-  cpu.P.Z = gen_status_Z(cpu.A);
-  cpu.P.N = gen_status_N(cpu.A);
+  cpu_set_flag(FLAG_Z, gen_status_Z(cpu.A));
+  cpu_set_flag(FLAG_N, gen_status_N(cpu.A));
   return true;
 }
 static bool PHA() {
@@ -957,30 +964,30 @@ static bool PHA() {
 }
 static bool PLA() {
   cpu.A = pop_byte();
-  cpu.P.Z = gen_status_Z(cpu.A);
-  cpu.P.N = gen_status_N(cpu.A);
+  cpu_set_flag(FLAG_Z, gen_status_Z(cpu.A));
+  cpu_set_flag(FLAG_N, gen_status_N(cpu.A));
   return false;
 }
 static bool PHP() {
-  cpu.P.B = 1;
-  cpu.P.__unused__ = 1;
+  cpu_set_flag(FLAG_B, true);
+  cpu_set_flag(FLAG_U, true);
   push_status();
-  cpu.P.B = 0;
+  cpu_set_flag(FLAG_B, false);
   return false;
 }
 static bool PLP() {
-  cpu_status_byte = pop_byte();
+  cpu.P = pop_byte();
   // WARN: olc6502 doesn't reset B
-  cpu.P.B = 0;
-  cpu.P.__unused__ = 1;
+  cpu_set_flag(FLAG_B, false);
+  cpu_set_flag(FLAG_U, true);
   return false;
 }
 static bool ROL() {
   fetch();
-  uint16_t result = (uint16_t)((cpu.fetched << 1) | cpu.P.C);
-  cpu.P.C = gen_status_C(result);
-  cpu.P.Z = gen_status_Z((byte_t)result);
-  cpu.P.N = gen_status_N((byte_t)result);
+  uint16_t result = (uint16_t)((cpu.fetched << 1) | cpu_get_flag(FLAG_C));
+  cpu_set_flag(FLAG_C, gen_status_C(result));
+  cpu_set_flag(FLAG_Z, gen_status_Z((byte_t)result));
+  cpu_set_flag(FLAG_N, gen_status_N((byte_t)result));
 
   if (inst_lookup[cpu.opcode].addr_mode == IMP)
     cpu.A = (byte_t)result;
@@ -991,10 +998,11 @@ static bool ROL() {
 }
 static bool ROR() {
   fetch();
-  uint16_t result = (uint16_t)(cpu.P.C << 7 | cpu.fetched >> 1);
-  cpu.P.C = (byte_t)(cpu.fetched & 0x01);
-  cpu.P.Z = gen_status_Z((byte_t)result);
-  cpu.P.N = gen_status_N((byte_t)result);
+  uint16_t result =
+      (uint16_t)((cpu_get_flag(FLAG_C) << 7) | (cpu.fetched >> 1));
+  cpu_set_flag(FLAG_C, (byte_t)(cpu.fetched & 0x01));
+  cpu_set_flag(FLAG_Z, gen_status_Z((byte_t)result));
+  cpu_set_flag(FLAG_N, gen_status_N((byte_t)result));
   if (inst_lookup[cpu.opcode].addr_mode == IMP)
     cpu.A = (byte_t)result;
   else
@@ -1003,11 +1011,11 @@ static bool ROR() {
   return false;
 }
 static bool RTI() {
-  cpu_status_byte = pop_byte();
-  cpu.P.B = 0;
+  cpu.P = pop_byte();
+  cpu_set_flag(FLAG_B, false);
   // WARN: bit 5 reads back as 1 on a 6502; keep internal copy consistent
   // but olc6502 just reset it
-  cpu.P.__unused__ = 1;
+  cpu_set_flag(FLAG_U, true);
   cpu.PC = pop_pc();
   return false;
 }
@@ -1017,15 +1025,15 @@ static bool RTS() {
   return false;
 }
 static bool SEC() {
-  cpu.P.C = 1;
+  cpu_set_flag(FLAG_C, true);
   return false;
 }
 static bool SED() {
-  cpu.P.D = 1;
+  cpu_set_flag(FLAG_D, true);
   return false;
 }
 static bool SEI() {
-  cpu.P.I = 1;
+  cpu_set_flag(FLAG_I, true);
   return false;
 }
 static bool STA() {
@@ -1042,26 +1050,26 @@ static bool STY() {
 }
 static bool TAX() {
   cpu.X = cpu.A;
-  cpu.P.Z = gen_status_Z(cpu.X);
-  cpu.P.N = gen_status_N(cpu.X);
+  cpu_set_flag(FLAG_Z, gen_status_Z(cpu.X));
+  cpu_set_flag(FLAG_N, gen_status_N(cpu.X));
   return false;
 }
 static bool TAY() {
   cpu.Y = cpu.A;
-  cpu.P.Z = gen_status_Z(cpu.Y);
-  cpu.P.N = gen_status_N(cpu.Y);
+  cpu_set_flag(FLAG_Z, gen_status_Z(cpu.Y));
+  cpu_set_flag(FLAG_N, gen_status_N(cpu.Y));
   return false;
 }
 static bool TSX() {
   cpu.X = cpu.STKP;
-  cpu.P.Z = gen_status_Z(cpu.X);
-  cpu.P.N = gen_status_N(cpu.X);
+  cpu_set_flag(FLAG_Z, gen_status_Z(cpu.X));
+  cpu_set_flag(FLAG_N, gen_status_N(cpu.X));
   return false;
 }
 static bool TXA() {
   cpu.A = cpu.X;
-  cpu.P.Z = gen_status_Z(cpu.A);
-  cpu.P.N = gen_status_N(cpu.A);
+  cpu_set_flag(FLAG_Z, gen_status_Z(cpu.A));
+  cpu_set_flag(FLAG_N, gen_status_N(cpu.A));
   return false;
 }
 static bool TXS() {
@@ -1070,8 +1078,8 @@ static bool TXS() {
 }
 static bool TYA() {
   cpu.A = cpu.Y;
-  cpu.P.Z = gen_status_Z(cpu.A);
-  cpu.P.N = gen_status_N(cpu.A);
+  cpu_set_flag(FLAG_Z, gen_status_Z(cpu.A));
+  cpu_set_flag(FLAG_N, gen_status_N(cpu.A));
   return false;
 }
 // Invalid instruction trap
@@ -1103,12 +1111,12 @@ void cpu_reset() {
   cpu.X = 0;
   cpu.Y = 0;
   cpu.STKP = 0xFD;
-  cpu_status_byte = 0;
+  cpu.P = 0;
   // this unused bit should always be 1 in the datasheet
-  cpu.P.__unused__ = 1;
+  cpu_set_flag(FLAG_U, true);
   // WARN: olc6502 doesn't set I status
-  cpu.P.I = 1;
-  cpu.P.D = 0;
+  cpu_set_flag(FLAG_I, true);
+  cpu_set_flag(FLAG_D, false);
   cpu.addr_abs = 0xFFFC;
   byte_t lo = bus_read(cpu.bus, cpu.addr_abs);
   byte_t hi = bus_read(cpu.bus, cpu.addr_abs + 1);
@@ -1124,41 +1132,37 @@ void cpu_reset() {
   cpu.cycles = 8;
 }
 void cpu_irq() {
-  if (cpu.P.I) {
+  if (cpu_get_flag(FLAG_I)) {
     return;
   }
   push_pc();
 
-  cpu.P.B = 0;
+  cpu_set_flag(FLAG_B, false);
   // bit 5 reads back as 1 on a 6502; keep stack copy consistent
-  cpu.P.__unused__ = 1;
+  cpu_set_flag(FLAG_U, true);
   push_status();
   // WARN: wrong implementation in olc6502, the I flag should be set after push
-  cpu.P.I = 1;
+  cpu_set_flag(FLAG_I, true);
   cpu.addr_abs = 0xFFFE;
   byte_t lo = bus_read(cpu.bus, cpu.addr_abs);
   byte_t hi = bus_read(cpu.bus, cpu.addr_abs + 1);
   cpu.PC = comb_addr(hi, lo);
   cpu.cycles = 7;
 }
+
 void cpu_nmi() {
   push_pc();
-  cpu.P.B = 0;
+  cpu_set_flag(FLAG_B, false);
   // bit 5 reads back as 1 on a 6502; keep stack copy consistent
-  cpu.P.__unused__ = 1;
+  cpu_set_flag(FLAG_U, true);
   push_status();
   // WARN: wrong implementation in olc6502, the I flag should be set after push
-  cpu.P.I = 1;
+  cpu_set_flag(FLAG_I, true);
   cpu.addr_abs = 0xFFFA;
   byte_t lo = bus_read(cpu.bus, cpu.addr_abs);
   byte_t hi = bus_read(cpu.bus, cpu.addr_abs + 1);
   cpu.PC = comb_addr(hi, lo);
   cpu.cycles = 8;
 }
-
-// void cpu_disasm_log(addr_t st, addr_t ed) {
-//   // TODO: impl
-//   return;
-// }
 
 bool cpu_inst_done() { return cpu.cycles == 0; }

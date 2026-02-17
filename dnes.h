@@ -39,7 +39,6 @@ void cpu_clock();
 void cpu_reset();
 void cpu_irq();
 void cpu_nmi();
-void cpu_disasm_log(addr_t st, addr_t ed);
 bool cpu_inst_done();
 
 /// ram.c
