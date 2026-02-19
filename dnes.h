@@ -51,7 +51,10 @@ void ram_register(struct bus *bus);
 
 void ppu_register_mbus(struct bus *mbus);
 void ppu_mount_pbus(struct bus *pbus);
+void ppu_ext_register(struct bus *pbus);
+bool ppu_is_frame_complete();
 void ppu_clock();
+void ppu_reset();
 
 /// cartridge.c
 //
@@ -67,6 +70,7 @@ void cart_register_mbus(struct bus *mbus);
 void cart_register_pbus(struct bus *pbus);
 void cart_load(const char *rom_path);
 void cart_pop();
+enum mirroring_mode cart_get_mirror_mode();
 
 /// utils.c
 //

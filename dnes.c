@@ -16,8 +16,7 @@ static void mbus_ready() {
 static void pbus_ready() {
   static struct bus pbus;
   cart_register_pbus(&pbus);
-  // TODO: name_table_register
-  // TODO: palettes_register
+  ppu_ext_register(&pbus);
   bus_ready(&pbus);
   ppu_mount_pbus(&pbus);
 }
@@ -43,16 +42,17 @@ void dnes_insert_cartridge(char *rom_path) {
   pbus_ready();
 }
 
-int main(int argc, char *argv[]) {
-  if (argc < 2) {
-    errorfln("Empty arguments");
-    return 1;
-  }
+// int main(int argc, char *argv[]) {
+//   if (argc < 2) {
+//     errorfln("Empty arguments");
+//     return 1;
+//   }
 
-  dnes_insert_cartridge(argv[1]);
-  dnes_reset();
-  while (true) {
-    dnes_clock();
-  }
-  return 0;
-}
+//   dnes_insert_cartridge(argv[1]);
+//   dnes_reset();
+//   while (true) {
+//     dnes_clock();
+//   }
+//   return 0;
+// }
+
