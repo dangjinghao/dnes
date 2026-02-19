@@ -41,18 +41,3 @@ void dnes_insert_cartridge(char *rom_path) {
   mbus_ready();
   pbus_ready();
 }
-
-// int main(int argc, char *argv[]) {
-//   if (argc < 2) {
-//     errorfln("Empty arguments");
-//     return 1;
-//   }
-
-//   dnes_insert_cartridge(argv[1]);
-//   dnes_reset();
-//   while (true) {
-//     dnes_clock();
-//   }
-//   return 0;
-// }
-

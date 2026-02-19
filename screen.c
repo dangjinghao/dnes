@@ -40,9 +40,27 @@ static void draw_cpu(int x, int y) {
   draw_string(x, y + 50, buf, COLOR_WHITE);
 }
 
+static void draw_code(int x, int y, int lines) {
+  addr_t start_addr = cpu_get_reg_PC();
+  char line_buf[256];
+  for (int i = 0; i < lines; i++) {
+    size_t str_used_len = 0;
+    size_t inst_byte_len = 0;
+    cpu_disasm_code(start_addr, line_buf + str_used_len,
+                    sizeof(line_buf) - str_used_len, &str_used_len,
+                    &inst_byte_len);
+
+    start_addr += inst_byte_len;
+    draw_string(x, y + i * 10, line_buf, COLOR_CYAN);
+  }
+}
+
 /* This function runs once at startup. */
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
-
+  if (argc < 2) {
+    errorfln("Empty arguments");
+    return 1;
+  }
   SDL_SetAppMetadata("djh's NES emulator", "0.1", "cloud.gugugu.dnes");
 
   if (!SDL_Init(SDL_INIT_VIDEO)) {
@@ -58,6 +76,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
   }
   SDL_SetRenderLogicalPresentation(renderer, WINDOW_WIDTH, WINDOW_HEIGHT,
                                    SDL_LOGICAL_PRESENTATION_LETTERBOX);
+
+  dnes_insert_cartridge(argv[1]);
+  dnes_reset();
 
   return SDL_APP_CONTINUE; /* carry on with the program! */
 }
@@ -75,7 +96,9 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   SDL_SetRenderDrawColor(renderer, 0, 0, 0,
                          SDL_ALPHA_OPAQUE); /* black, full alpha */
   SDL_RenderClear(renderer);                /* start with a blank canvas. */
+  dnes_clock();
   draw_cpu(516, 2);
+  draw_code(516, 72, 26);
   SDL_RenderPresent(renderer); /* put it all on the screen! */
 
   return SDL_APP_CONTINUE; /* carry on with the program! */

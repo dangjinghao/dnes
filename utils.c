@@ -15,3 +15,4 @@ const uint32_t COLOR_GREEN = 0x0000FF00;
 const uint32_t COLOR_BLUE = 0x000000FF;
 const uint32_t COLOR_WHITE = 0x00FFFFFF;
 const uint32_t COLOR_BLACK = 0xFF000000;
+const uint32_t COLOR_CYAN = 0x0000FFFF;

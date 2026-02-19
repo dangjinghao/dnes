@@ -1,6 +1,8 @@
 #include "dnes.h"
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 static struct {
   byte_t P; // Status register
   byte_t A;
@@ -1165,3 +1167,85 @@ byte_t cpu_get_reg_X() { return cpu.X; }
 byte_t cpu_get_reg_Y() { return cpu.Y; }
 
 byte_t cpu_get_reg_STKP() { return cpu.STKP; }
+
+// disasm the code at addr, and write the result to buf, return the length of
+// the disasm string and the instruction length in bytes
+void cpu_disasm_code(addr_t addr, char *buf, size_t buf_size,
+                     size_t *str_used_len, size_t *inst_byte_len) {
+  if (!buf || buf_size == 0) {
+    if (str_used_len)
+      *str_used_len = 0;
+    if (inst_byte_len)
+      *inst_byte_len = 0;
+    return;
+  }
+
+  byte_t opcode = bus_read_only(cpu.bus, addr);
+  struct inst i = inst_lookup[opcode];
+  byte_t b1 = bus_read_only(cpu.bus, (addr_t)(addr + 1));
+  byte_t b2 = bus_read_only(cpu.bus, (addr_t)(addr + 2));
+
+  char operand[32] = {0};
+  size_t len = 1;
+
+  if (i.addr_mode == NULL) {
+    snprintf(operand, sizeof(operand), "?");
+  } else if (i.addr_mode == IMP) {
+    operand[0] = '\0';
+    len = 1;
+  } else if (i.addr_mode == IMM) {
+    snprintf(operand, sizeof(operand), "#$%02X", b1);
+    len = 2;
+  } else if (i.addr_mode == ZP0) {
+    snprintf(operand, sizeof(operand), "$%02X", b1);
+    len = 2;
+  } else if (i.addr_mode == ZPX) {
+    snprintf(operand, sizeof(operand), "$%02X,X", b1);
+    len = 2;
+  } else if (i.addr_mode == ZPY) {
+    snprintf(operand, sizeof(operand), "$%02X,Y", b1);
+    len = 2;
+  } else if (i.addr_mode == REL) {
+    int8_t rel = (int8_t)b1;
+    addr_t target = (addr_t)(addr + 2 + rel);
+    snprintf(operand, sizeof(operand), "$%04X", target);
+    len = 2;
+  } else if (i.addr_mode == ABS) {
+    addr_t abs = comb_addr(b2, b1);
+    snprintf(operand, sizeof(operand), "$%04X", abs);
+    len = 3;
+  } else if (i.addr_mode == ABX) {
+    addr_t abs = comb_addr(b2, b1);
+    snprintf(operand, sizeof(operand), "$%04X,X", abs);
+    len = 3;
+  } else if (i.addr_mode == ABY) {
+    addr_t abs = comb_addr(b2, b1);
+    snprintf(operand, sizeof(operand), "$%04X,Y", abs);
+    len = 3;
+  } else if (i.addr_mode == IND) {
+    addr_t abs = comb_addr(b2, b1);
+    snprintf(operand, sizeof(operand), "($%04X)", abs);
+    len = 3;
+  } else if (i.addr_mode == IZX) {
+    snprintf(operand, sizeof(operand), "($%02X,X)", b1);
+    len = 2;
+  } else if (i.addr_mode == IZY) {
+    snprintf(operand, sizeof(operand), "($%02X),Y", b1);
+    len = 2;
+  } else {
+    snprintf(operand, sizeof(operand), "?");
+  }
+
+  int written = 0;
+  if (operand[0] == '\0')
+    written = snprintf(buf, buf_size, "$%04X: %s", addr, i.op_name);
+  else
+    written = snprintf(buf, buf_size, "$%04X: %s %s", addr, i.op_name, operand);
+
+  if (written < 0)
+    written = 0;
+  if (str_used_len)
+    *str_used_len = (size_t)written;
+  if (inst_byte_len)
+    *inst_byte_len = len;
+}

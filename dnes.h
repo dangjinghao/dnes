@@ -58,6 +58,8 @@ byte_t cpu_get_reg_A();
 byte_t cpu_get_reg_X();
 byte_t cpu_get_reg_Y();
 byte_t cpu_get_reg_STKP();
+void cpu_disasm_code(addr_t addr, char *buf, size_t buf_size,
+                     size_t *str_used_len, size_t *inst_byte_len) ;
 
 /// ram.c
 //
@@ -107,7 +109,7 @@ extern const uint32_t COLOR_GREEN;
 extern const uint32_t COLOR_BLUE;
 extern const uint32_t COLOR_WHITE;
 extern const uint32_t COLOR_BLACK;
-
+extern const uint32_t COLOR_CYAN;
 // mapper_*.c
 
 struct mapper {
