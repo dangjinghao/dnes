@@ -393,19 +393,6 @@ static inline byte_t addr_lo(addr_t a) { return (byte_t)(a & 0xFF); }
 
 static inline bool gen_flag(uint16_t f) { return !!f; }
 
-enum {
-  FLAG_C = 1 << 0,
-  FLAG_Z = 1 << 1,
-  FLAG_I = 1 << 2,
-  FLAG_D = 1 << 3,
-  FLAG_B = 1 << 4,
-  FLAG_U = 1 << 5,
-  FLAG_V = 1 << 6,
-  FLAG_N = 1 << 7,
-};
-
-static inline bool cpu_get_flag(byte_t flag) { return (cpu.P & flag) != 0; }
-
 static inline void cpu_set_flag(byte_t flag, bool v) {
   if (v)
     cpu.P |= flag;
@@ -1166,3 +1153,15 @@ void cpu_nmi() {
 }
 
 bool cpu_inst_done() { return cpu.cycles == 0; }
+
+bool cpu_get_flag(enum CPU_P_FLAGS flag) { return (cpu.P & flag) != 0; }
+
+addr_t cpu_get_reg_PC() { return cpu.PC; }
+
+byte_t cpu_get_reg_A() { return cpu.A; }
+
+byte_t cpu_get_reg_X() { return cpu.X; }
+
+byte_t cpu_get_reg_Y() { return cpu.Y; }
+
+byte_t cpu_get_reg_STKP() { return cpu.STKP; }

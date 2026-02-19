@@ -41,6 +41,24 @@ void cpu_irq();
 void cpu_nmi();
 bool cpu_inst_done();
 
+enum CPU_P_FLAGS {
+  FLAG_C = 1 << 0,
+  FLAG_Z = 1 << 1,
+  FLAG_I = 1 << 2,
+  FLAG_D = 1 << 3,
+  FLAG_B = 1 << 4,
+  FLAG_U = 1 << 5,
+  FLAG_V = 1 << 6,
+  FLAG_N = 1 << 7,
+};
+
+bool cpu_get_flag(enum CPU_P_FLAGS flag);
+addr_t cpu_get_reg_PC();
+byte_t cpu_get_reg_A();
+byte_t cpu_get_reg_X();
+byte_t cpu_get_reg_Y();
+byte_t cpu_get_reg_STKP();
+
 /// ram.c
 //
 
@@ -83,6 +101,12 @@ void serrorf(char *file_name, size_t line, char *fmt, ...)
   serrorf(__FILE_NAME__, __LINE__, fmt "\n", ##__VA_ARGS__)
 
 #define TODO() assert(0 && "todo")
+
+extern const uint32_t COLOR_RED;
+extern const uint32_t COLOR_GREEN;
+extern const uint32_t COLOR_BLUE;
+extern const uint32_t COLOR_WHITE;
+extern const uint32_t COLOR_BLACK;
 
 // mapper_*.c
 
