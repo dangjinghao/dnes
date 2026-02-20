@@ -558,18 +558,10 @@ bool ppu_frame_complete = false;
 bool ppu_nmi = false;
 
 void ppu_set_screen_pixel(int x, int y, struct SDL_Color *color) {
-  ppu_screen_output[y][x] = *color;
-}
-
-static void ppu_set_fake_screen_pixel() {
-  for (int y = 0; y < 240; y++) {
-    for (int x = 0; x < 256; x++) {
-      if (y == 0 || y == 239 || x == 0 || x == 255)
-        ppu_screen_output[y][x] = screen_color[0x10];
-      else
-        ppu_screen_output[y][x] = screen_color[(rand() % 2) ? 0x3F : 0x30];
-    }
+  if (x < 0 || x >= 256 || y < 0 || y >= 240) {
+    return;
   }
+  ppu_screen_output[y][x] = *color;
 }
 
 void ppu_clock() {
