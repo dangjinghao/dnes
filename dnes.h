@@ -59,7 +59,7 @@ byte_t cpu_get_reg_X();
 byte_t cpu_get_reg_Y();
 byte_t cpu_get_reg_STKP();
 void cpu_disasm_code(addr_t addr, char *buf, size_t buf_size,
-                     size_t *str_used_len, size_t *inst_byte_len) ;
+                     size_t *str_used_len, size_t *inst_byte_len);
 
 /// ram.c
 //
@@ -75,6 +75,7 @@ void ppu_ext_register(struct bus *pbus);
 bool ppu_is_frame_complete();
 void ppu_clock();
 void ppu_reset();
+struct SDL_Color *ppu_get_color_from_palette(byte_t palette_idx, byte_t px);
 
 /// cartridge.c
 //
@@ -110,6 +111,20 @@ extern const uint32_t COLOR_BLUE;
 extern const uint32_t COLOR_WHITE;
 extern const uint32_t COLOR_BLACK;
 extern const uint32_t COLOR_CYAN;
+
+static inline byte_t color_extract_red(uint32_t color) {
+  return (color >> 24) & 0xFF;
+}
+static inline byte_t color_extract_green(uint32_t color) {
+  return (color >> 16) & 0xFF;
+}
+static inline byte_t color_extract_blue(uint32_t color) {
+  return (color >> 8) & 0xFF;
+}
+static inline byte_t color_extract_alpha(uint32_t color) {
+  return (color >> 0) & 0xFF;
+}
+
 // mapper_*.c
 
 struct mapper {

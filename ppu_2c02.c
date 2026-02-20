@@ -57,8 +57,6 @@ union loopy_register {
   uint16_t reg;
 };
 
-
-
 static union loopy_register
     vram_addr; // Active "pointer" address into nametable to extract
                // background tile info
@@ -124,11 +122,20 @@ static struct SDL_Color screen_color[0x40] = {
  * @param px the 2b pixel index
  * @return struct SDL_Color*
  */
-static struct SDL_Color *get_color_from_palette(byte_t palette_idx, byte_t px) {
+struct SDL_Color *ppu_get_color_from_palette(byte_t palette_idx, byte_t px) {
+  // This is a convenience function that takes a specified palette and pixel
+  // index and returns the appropriate screen colour.
+  // "0x3F00"       - Offset into PPU addressable range where palettes are
+  // stored "palette << 2" - Each palette is 4 bytes in size "pixel"        -
+  // Each pixel index is either 0, 1, 2 or 3
+  // "& 0x3F"       - Stops us reading beyond the bounds of the palScreen array
   const addr_t start_addr = 0x3F00;
   return &screen_color[bus_read(pbus,
                                 start_addr + (byte_t)(palette_idx * 4) + px) &
                        0x3F];
+  // Note: We dont access tblPalette directly here, instead we know that
+  // ppuRead()
+  // will map the address onto the seperate small RAM attached to the PPU bus.
 }
 
 static inline addr_t ppu_mbus_real_addr(addr_t addr) { return (addr & 0x0007); }

@@ -1,19 +1,44 @@
 #include "dnes.h"
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
+#include <SDL3/SDL_render.h>
 /* We will use this renderer to draw into this window every frame. */
 static SDL_Window *window = NULL;
 static SDL_Renderer *renderer = NULL;
 
-static const int WINDOW_WIDTH = 780;
-static const int WINDOW_HEIGHT = 480;
-static bool next_inst = false;
-
 static void draw_string(int x, int y, const char *str, uint32_t color) {
-  SDL_SetRenderDrawColor(renderer, (color >> 16) & 0xFF, (color >> 8) & 0xFF,
-                         color & 0xFF, SDL_ALPHA_OPAQUE);
+  SDL_SetRenderDrawColor(renderer, color_extract_red(color),
+                         color_extract_green(color), color_extract_blue(color),
+                         color_extract_alpha(color));
   SDL_RenderDebugText(renderer, x, y, str);
 }
+
+static void fill_rect_SDL_color(int x, int y, int w, int h,
+                                struct SDL_Color *color) {
+  SDL_SetRenderDrawColor(renderer, color->r, color->g, color->b, color->a);
+  SDL_FRect rect = {x, y, w, h};
+  SDL_RenderFillRect(renderer, &rect);
+}
+
+static void fill_rect(int x, int y, int w, int h, uint32_t color) {
+  fill_rect_SDL_color(x, y, w, h,
+                      &(struct SDL_Color){color_extract_red(color),
+                                          color_extract_green(color),
+                                          color_extract_blue(color),
+                                          color_extract_alpha(color)});
+}
+
+static void draw_rect(int x, int y, int w, int h, uint32_t color) {
+  SDL_SetRenderDrawColor(renderer, color_extract_red(color),
+                         color_extract_green(color), color_extract_blue(color),
+                         color_extract_alpha(color));
+  SDL_FRect rect = {x, y, w, h};
+  SDL_RenderRect(renderer, &rect);
+}
+
+static const int WINDOW_WIDTH = 780;
+static const int WINDOW_HEIGHT = 480;
+static byte_t selected_palette = 0;
 
 static void draw_cpu(int x, int y) {
   draw_string(x, y, "STATUS:", COLOR_WHITE);
@@ -52,7 +77,7 @@ static void draw_code(int x, int y, int lines) {
                     &inst_byte_len);
 
     start_addr += inst_byte_len;
-    draw_string(x, y + i * 10, line_buf, COLOR_CYAN);
+    draw_string(x, y + i * 10, line_buf, i == 0 ? COLOR_CYAN : COLOR_WHITE);
   }
 }
 
@@ -89,6 +114,25 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
   if (event->type == SDL_EVENT_QUIT) {
     return SDL_APP_SUCCESS; /* end the program, reporting success to the OS. */
   }
+
+  if (event->type == SDL_EVENT_KEY_UP) {
+    switch (event->key.scancode) {
+    case SDL_SCANCODE_C: {
+      // SDL_Log("clock");
+      do {
+        dnes_clock();
+      } while (!cpu_inst_done());
+      // CPU clock runs slower than system clock, so it may be
+      // complete for additional system clock cycles. Drain
+      // those out
+      do {
+        dnes_clock();
+      } while (cpu_inst_done());
+    }
+    default:
+      break;
+    }
+  }
   return SDL_APP_CONTINUE; /* carry on with the program! */
 }
 
@@ -97,23 +141,23 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   SDL_SetRenderDrawColor(renderer, 0, 0, 0,
                          SDL_ALPHA_OPAQUE); /* black, full alpha */
   SDL_RenderClear(renderer);                /* start with a blank canvas. */
-  const bool *keys = SDL_GetKeyboardState(NULL);
-  if (keys[SDL_SCANCODE_C] && !next_inst) {
-    next_inst = true;
-  } else if (keys[SDL_SCANCODE_C] && next_inst) {
-    // nothing, wait for release
-  } else if (!keys[SDL_SCANCODE_C] && next_inst) {
-    SDL_Log("clock");
-    do {
-      dnes_clock();
-    } while (!cpu_inst_done());
-    do {
-      dnes_clock();
-    } while (cpu_inst_done());
-    next_inst = false;
-  }
+
   draw_cpu(516, 2);
-  draw_code(516, 72, 26);
+  draw_code(516, 72, 13);
+
+  // Draw Palettes & Pattern Tables
+  // ==============================================
+  const int nSwatchSize = 6;
+  for (byte_t p = 0; p < 8; p++)   // For each palette
+    for (byte_t s = 0; s < 4; s++) // For each index
+      fill_rect_SDL_color(516 + p * (nSwatchSize * 5) + s * nSwatchSize, 340,
+                          nSwatchSize, nSwatchSize,
+                          ppu_get_color_from_palette(p, s));
+
+  // Draw selection reticule around selected palette
+  draw_rect(516 + selected_palette * (nSwatchSize * 5) - 1, 339,
+            (nSwatchSize * 4), nSwatchSize, COLOR_WHITE);
+
   SDL_RenderPresent(renderer); /* put it all on the screen! */
 
   return SDL_APP_CONTINUE; /* carry on with the program! */
