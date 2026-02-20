@@ -90,6 +90,8 @@ static struct bus *pbus;
 
 static byte_t name_table[2][1024];
 static byte_t palette_table[32];
+struct SDL_Color ppu_pattern_table[2][128][128];
+
 struct SDL_Color ppu_screen_output[240][256];
 
 static struct SDL_Color screen_color[0x40] = {
@@ -557,11 +559,19 @@ static void clock_update_shifters() {
 bool ppu_frame_complete = false;
 bool ppu_nmi = false;
 
-void ppu_set_screen_pixel(int x, int y, struct SDL_Color *color) {
+static void screen_output_set_pixel(int x, int y, struct SDL_Color *color) {
   if (x < 0 || x >= 256 || y < 0 || y >= 240) {
     return;
   }
   ppu_screen_output[y][x] = *color;
+}
+
+static void pattern_table_set_pixel(int table, int x, int y,
+                                    struct SDL_Color *color) {
+  if (table < 0 || table >= 2 || x < 0 || x >= 128 || y < 0 || y >= 128) {
+    return;
+  }
+  ppu_pattern_table[table][y][x] = *color;
 }
 
 void ppu_clock() {
@@ -826,8 +836,8 @@ void ppu_clock() {
   // Now we have a final pixel colour, and a palette for this cycle
   // of the current scanline. Let's at long last, draw that ^&%*er :P
 
-  ppu_set_screen_pixel(cycle - 1, scanline,
-                       ppu_get_color_from_palette(bg_palette, bg_pixel));
+  screen_output_set_pixel(cycle - 1, scanline,
+                          ppu_get_color_from_palette(bg_palette, bg_pixel));
 
   // Advance renderer - it never stops, it's relentless
   cycle++;
@@ -841,4 +851,90 @@ void ppu_clock() {
   }
 }
 
-void ppu_get_pattern_table(byte_t i, byte_t palette) {}
+void ppu_gen_pattern_table(byte_t i, byte_t palette) {
+  // This function draw the CHR ROM for a given pattern table into
+  // an olc::Sprite, using a specified palette. Pattern tables consist
+  // of 16x16 "tiles or characters". It is independent of the running
+  // emulation and using it does not change the systems state, though
+  // it gets all the data it needs from the live system. Consequently,
+  // if the game has not yet established palettes or mapped to relevant
+  // CHR ROM banks, the sprite may look empty. This approach permits a
+  // "live" extraction of the pattern table exactly how the NES, and
+  // ultimately the player would see it.
+
+  // A tile consists of 8x8 pixels. On the NES, pixels are 2 bits, which
+  // gives an index into 4 different colours of a specific palette. There
+  // are 8 palettes to choose from. Colour "0" in each palette is effectively
+  // considered transparent, as those locations in memory "mirror" the global
+  // background colour being used. This mechanics of this are shown in
+  // detail in ppuRead() & ppuWrite()
+
+  // Characters on NES
+  // ~~~~~~~~~~~~~~~~~
+  // The NES stores characters using 2-bit pixels. These are not stored
+  // sequentially but in singular bit planes. For example:
+  //
+  // 2-Bit Pixels       LSB Bit Plane     MSB Bit Plane
+  // 0 0 0 0 0 0 0 0	  0 0 0 0 0 0 0 0   0 0 0 0 0 0 0 0
+  // 0 1 1 0 0 1 1 0	  0 1 1 0 0 1 1 0   0 0 0 0 0 0 0 0
+  // 0 1 2 0 0 2 1 0	  0 1 1 0 0 1 1 0   0 0 1 0 0 1 0 0
+  // 0 0 0 0 0 0 0 0 =  0 0 0 0 0 0 0 0 + 0 0 0 0 0 0 0 0
+  // 0 1 1 0 0 1 1 0	  0 1 1 0 0 1 1 0   0 0 0 0 0 0 0 0
+  // 0 0 1 1 1 1 0 0	  0 0 1 1 1 1 0 0   0 0 0 0 0 0 0 0
+  // 0 0 0 2 2 0 0 0	  0 0 0 1 1 0 0 0   0 0 0 1 1 0 0 0
+  // 0 0 0 0 0 0 0 0	  0 0 0 0 0 0 0 0   0 0 0 0 0 0 0 0
+  //
+  // The planes are stored as 8 bytes of LSB, followed by 8 bytes of MSB
+
+  // Loop through all 16x16 tiles
+  for (uint16_t nTileY = 0; nTileY < 16; nTileY++) {
+    for (uint16_t nTileX = 0; nTileX < 16; nTileX++) {
+      // Convert the 2D tile coordinate into a 1D offset into the pattern
+      // table memory.
+      uint16_t nOffset = nTileY * 256 + nTileX * 16;
+
+      // Now loop through 8 rows of 8 pixels
+      for (uint16_t row = 0; row < 8; row++) {
+        // For each row, we need to read both bit planes of the character
+        // in order to extract the least significant and most significant
+        // bits of the 2 bit pixel value. in the CHR ROM, each character
+        // is stored as 64 bits of lsb, followed by 64 bits of msb. This
+        // conveniently means that two corresponding rows are always 8
+        // bytes apart in memory.
+        uint8_t tile_lsb =
+            bus_read(pbus, (addr_t)(i * 0x1000 + nOffset + row + 0x0000));
+        uint8_t tile_msb =
+            bus_read(pbus, (addr_t)(i * 0x1000 + nOffset + row + 0x0008));
+
+        // Now we have a single row of the two bit planes for the character
+        // we need to iterate through the 8-bit words, combining them to give
+        // us the final pixel index
+        for (uint16_t col = 0; col < 8; col++) {
+          // We can get the index value by simply adding the bits together
+          // but we're only interested in the lsb of the row words because...
+          uint8_t pixel = (tile_lsb & 0x01) + (tile_msb & 0x01);
+
+          // ...we will shift the row words 1 bit right for each column of
+          // the character.
+          tile_lsb >>= 1;
+          tile_msb >>= 1;
+
+          // Now we know the location and NES pixel value for a specific
+          // location in the pattern table, we can translate that to a screen
+          // colour, and an (x,y) location in the sprite
+
+          pattern_table_set_pixel(
+              i,
+              nTileX * 8 +
+                  (7 -
+                   col), // Because we are using the lsb of the row word first
+                         // we are effectively reading the row from right
+                         // to left, so we need to draw the row "backwards"
+              nTileY * 8 + row, ppu_get_color_from_palette(palette, pixel));
+        }
+      }
+    }
+  }
+
+  // Finally return the updated sprite representing the pattern table
+}

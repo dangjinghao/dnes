@@ -78,9 +78,10 @@ extern bool ppu_nmi;
 extern bool ppu_frame_complete;
 void ppu_clock();
 void ppu_reset();
-
+void ppu_gen_pattern_table(byte_t i, byte_t palette);
 struct SDL_Color *ppu_get_color_from_palette(byte_t palette_idx, byte_t px);
 extern struct SDL_Color ppu_screen_output[240][256];
+extern struct SDL_Color ppu_pattern_table[2][128][128];
 /// cartridge.c
 //
 
