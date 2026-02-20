@@ -128,6 +128,11 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
       do {
         dnes_clock();
       } while (cpu_inst_done());
+      break;
+    }
+    case SDL_SCANCODE_P: {
+      selected_palette = (selected_palette + 1) % 8;
+      break;
     }
     default:
       break;
