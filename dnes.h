@@ -152,4 +152,10 @@ void dnes_reset();
 void dnes_clock();
 void dnes_insert_cartridge(char *rom_path);
 
+/// controller.c
+//
+
+void ctrl_register(struct bus *bus);
+
+
 #endif

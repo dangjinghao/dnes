@@ -19,6 +19,7 @@ set(SRC_FILES
     ram.c
     utils.c
     screen.c
+    controller.c
 )
 
 add_executable(dnes ${SRC_FILES})

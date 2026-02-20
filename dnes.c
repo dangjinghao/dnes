@@ -6,8 +6,8 @@ static void mbus_ready() {
   ppu_register_mbus(&mbus);
   ram_register(&mbus);
   cart_register_mbus(&mbus);
+  ctrl_register(&mbus);
   // TODO: apu_register(&mbus);
-  // TODO: controls
   // TODO: stuff...
   bus_ready(&mbus);
   cpu_mount_mbus(&mbus);
