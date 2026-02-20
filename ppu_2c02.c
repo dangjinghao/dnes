@@ -827,7 +827,7 @@ void ppu_clock() {
   // of the current scanline. Let's at long last, draw that ^&%*er :P
 
   ppu_set_screen_pixel(cycle - 1, scanline,
-                       &screen_color[(rand() % 2) ? 0x3F : 0x30]);
+                       ppu_get_color_from_palette(bg_palette, bg_pixel));
 
   // Advance renderer - it never stops, it's relentless
   cycle++;
