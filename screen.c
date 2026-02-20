@@ -147,6 +147,18 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
       dnes_reset();
       break;
     }
+    case SDL_SCANCODE_F: {
+      do {
+        dnes_clock();
+      } while (!ppu_frame_complete);
+      do {
+        dnes_clock();
+      } while (!cpu_inst_done());
+      SDL_Log("Frame complete");
+      
+      ppu_frame_complete = false;
+      break;
+    }
     case SDL_SCANCODE_SPACE: {
       SDL_Log("TODO: start/pause running");
       break;
