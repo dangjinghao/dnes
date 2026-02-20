@@ -36,6 +36,15 @@ static void draw_rect(int x, int y, int w, int h, uint32_t color) {
   SDL_RenderRect(renderer, &rect);
 }
 
+static void draw_screen(int x, int y) {
+  for (int row = 0; row < 240; row++) {
+    for (int col = 0; col < 256; col++) {
+      fill_rect_SDL_color(x + col * 2, y + row * 2, 2, 2,
+                          &ppu_screen_output[row][col]);
+    }
+  }
+}
+
 static const int WINDOW_WIDTH = 780;
 static const int WINDOW_HEIGHT = 480;
 static byte_t selected_palette = 0;
@@ -170,7 +179,7 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   // Draw selection reticule around selected palette
   draw_rect(516 + selected_palette * (nSwatchSize * 5) - 1, 339,
             (nSwatchSize * 4), nSwatchSize, COLOR_WHITE);
-
+  draw_screen(0, 0);
   SDL_RenderPresent(renderer); /* put it all on the screen! */
 
   return SDL_APP_CONTINUE; /* carry on with the program! */

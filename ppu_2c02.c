@@ -1,6 +1,7 @@
 
 #include "dnes.h"
 #include <SDL3/SDL.h>
+#include <stdlib.h>
 
 static union {
   struct {
@@ -89,6 +90,7 @@ static struct bus *pbus;
 
 static byte_t name_table[2][1024];
 static byte_t palette_table[32];
+struct SDL_Color ppu_screen_output[240][256];
 
 static struct SDL_Color screen_color[0x40] = {
     {84, 84, 84, 255},    {0, 30, 116, 255},    {8, 16, 144, 255},
@@ -557,6 +559,21 @@ static bool nmi = false;
 
 bool ppu_is_frame_complete() { return frame_complete; }
 
+void ppu_set_screen_pixel(int x, int y, struct SDL_Color *color) {
+  ppu_screen_output[y][x] = *color;
+}
+
+static void ppu_set_fake_screen_pixel() {
+  for (int y = 0; y < 240; y++) {
+    for (int x = 0; x < 256; x++) {
+      if (y == 0 || y == 239 || x == 0 || x == 255)
+        ppu_screen_output[y][x] = screen_color[0x10];
+      else
+        ppu_screen_output[y][x] = screen_color[(rand() % 2) ? 0x3F : 0x30];
+    }
+  }
+}
+
 void ppu_clock() {
   // All but 1 of the secanlines is visible to the user. The pre-render scanline
   // at -1, is used to configure the "shifters" for the first visible scanline,
@@ -819,12 +836,7 @@ void ppu_clock() {
   // Now we have a final pixel colour, and a palette for this cycle
   // of the current scanline. Let's at long last, draw that ^&%*er :P
 
-  // sprScreen->SetPixel(cycle - 1, scanline,
-  //                     get_color_from_palette(bg_palette, bg_pixel));
-
-  // Fake some noise for now
-  // sprScreen.SetPixel(cycle - 1, scanline, palScreen[(rand() % 2) ? 0x3F :
-  // 0x30]);
+  ppu_set_fake_screen_pixel();
 
   // Advance renderer - it never stops, it's relentless
   cycle++;
@@ -842,3 +854,5 @@ bool ppu_nmi_is_enabled() { return nmi; }
 void ppu_nmi_disable() { nmi = false; }
 
 void ppu_nmi_enable() { nmi = true; }
+
+void ppu_get_pattern_table(byte_t i, byte_t palette) {}

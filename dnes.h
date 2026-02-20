@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <SDL3/SDL.h>
 // The width of address is 16b
 typedef uint16_t addr_t;
 typedef uint8_t byte_t;
@@ -79,7 +80,7 @@ bool ppu_nmi_is_enabled();
 void ppu_nmi_disable();
 void ppu_nmi_enable();
 struct SDL_Color *ppu_get_color_from_palette(byte_t palette_idx, byte_t px);
-
+extern struct SDL_Color ppu_screen_output[240][256];
 /// cartridge.c
 //
 
