@@ -1,10 +1,10 @@
 #ifndef _DNES_H
 #define _DNES_H
+#include <SDL3/SDL.h>
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <SDL3/SDL.h>
 // The width of address is 16b
 typedef uint16_t addr_t;
 typedef uint8_t byte_t;
@@ -73,12 +73,12 @@ void ram_register(struct bus *bus);
 void ppu_register_mbus(struct bus *mbus);
 void ppu_mount_pbus(struct bus *pbus);
 void ppu_ext_register(struct bus *pbus);
-bool ppu_is_frame_complete();
+
+extern bool ppu_nmi;
+extern bool ppu_frame_complete;
 void ppu_clock();
 void ppu_reset();
-bool ppu_nmi_is_enabled();
-void ppu_nmi_disable();
-void ppu_nmi_enable();
+
 struct SDL_Color *ppu_get_color_from_palette(byte_t palette_idx, byte_t px);
 extern struct SDL_Color ppu_screen_output[240][256];
 /// cartridge.c

@@ -29,8 +29,8 @@ void dnes_clock() {
     cpu_clock();
   }
 
-  if(ppu_nmi_is_enabled()){
-    ppu_nmi_disable();
+  if (ppu_nmi) {
+    ppu_nmi = false;
     cpu_nmi();
   }
   system_clock += 1;

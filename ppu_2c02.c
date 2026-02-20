@@ -554,10 +554,8 @@ static void clock_update_shifters() {
     bg_shifter_attrib_hi <<= 1;
   }
 }
-static bool frame_complete = false;
-static bool nmi = false;
-
-bool ppu_is_frame_complete() { return frame_complete; }
+bool ppu_frame_complete = false;
+bool ppu_nmi = false;
 
 void ppu_set_screen_pixel(int x, int y, struct SDL_Color *color) {
   ppu_screen_output[y][x] = *color;
@@ -798,7 +796,7 @@ void ppu_clock() {
       // perform operations with the PPU knowing it wont
       // produce visible artefacts
       if (control.enable_nmi)
-        nmi = true;
+        ppu_nmi = true;
     }
   }
 
@@ -836,7 +834,8 @@ void ppu_clock() {
   // Now we have a final pixel colour, and a palette for this cycle
   // of the current scanline. Let's at long last, draw that ^&%*er :P
 
-  ppu_set_fake_screen_pixel();
+  ppu_set_screen_pixel(cycle - 1, scanline,
+                       &screen_color[(rand() % 2) ? 0x3F : 0x30]);
 
   // Advance renderer - it never stops, it's relentless
   cycle++;
@@ -845,14 +844,9 @@ void ppu_clock() {
     scanline++;
     if (scanline >= 261) {
       scanline = -1;
-      frame_complete = true;
+      ppu_frame_complete = true;
     }
   }
 }
-
-bool ppu_nmi_is_enabled() { return nmi; }
-void ppu_nmi_disable() { nmi = false; }
-
-void ppu_nmi_enable() { nmi = true; }
 
 void ppu_get_pattern_table(byte_t i, byte_t palette) {}
