@@ -75,6 +75,9 @@ void ppu_ext_register(struct bus *pbus);
 bool ppu_is_frame_complete();
 void ppu_clock();
 void ppu_reset();
+bool ppu_nmi_is_enabled();
+void ppu_nmi_disable();
+void ppu_nmi_enable();
 struct SDL_Color *ppu_get_color_from_palette(byte_t palette_idx, byte_t px);
 
 /// cartridge.c
@@ -91,6 +94,9 @@ void cart_register_mbus(struct bus *mbus);
 void cart_register_pbus(struct bus *pbus);
 void cart_load(const char *rom_path);
 void cart_pop();
+void cart_reset();
+extern byte_t mapper_prg_banks, mapper_chr_banks;
+
 enum mirroring_mode cart_get_mirror_mode();
 
 /// utils.c

@@ -28,12 +28,18 @@ void dnes_clock() {
   if (system_clock % 3 == 0) {
     cpu_clock();
   }
+
+  if(ppu_nmi_is_enabled()){
+    ppu_nmi_disable();
+    cpu_nmi();
+  }
   system_clock += 1;
 }
 
 void dnes_reset() {
   cpu_reset();
   ppu_reset();
+  cart_reset();
   system_clock = 0;
 }
 

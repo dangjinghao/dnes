@@ -22,6 +22,8 @@ static byte_t *prg_memory;
 static byte_t chr_banks;
 static byte_t *chr_memory;
 static struct mapper *mapper;
+byte_t mapper_prg_banks, mapper_chr_banks;
+
 static enum mirroring_mode mirroring;
 
 enum mirroring_mode cart_get_mirror_mode() { return mirroring; }
@@ -161,4 +163,8 @@ void cart_pop() {
   mapper = NULL;
   free(prg_memory);
   free(chr_memory);
+}
+
+void cart_reset(){
+  mapper->reset();
 }

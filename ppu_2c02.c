@@ -837,3 +837,8 @@ void ppu_clock() {
     }
   }
 }
+
+bool ppu_nmi_is_enabled() { return nmi; }
+void ppu_nmi_disable() { nmi = false; }
+
+void ppu_nmi_enable() { nmi = true; }

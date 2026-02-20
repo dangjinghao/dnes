@@ -134,6 +134,14 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
       selected_palette = (selected_palette + 1) % 8;
       break;
     }
+    case SDL_SCANCODE_R: {
+      dnes_reset();
+      break;
+    }
+    case SDL_SCANCODE_SPACE: {
+      SDL_Log("TODO: start/pause running");
+      break;
+    }
     default:
       break;
     }
