@@ -7,6 +7,7 @@ static SDL_Renderer *renderer = NULL;
 
 static const int WINDOW_WIDTH = 780;
 static const int WINDOW_HEIGHT = 480;
+static bool next_inst = false;
 
 static void draw_string(int x, int y, const char *str, uint32_t color) {
   SDL_SetRenderDrawColor(renderer, (color >> 16) & 0xFF, (color >> 8) & 0xFF,
@@ -58,7 +59,7 @@ static void draw_code(int x, int y, int lines) {
 /* This function runs once at startup. */
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
   if (argc < 2) {
-    errorfln("Empty arguments");
+    SDL_Log("Empty arguments");
     return 1;
   }
   SDL_SetAppMetadata("djh's NES emulator", "0.1", "cloud.gugugu.dnes");
@@ -79,7 +80,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
 
   dnes_insert_cartridge(argv[1]);
   dnes_reset();
-
+  SDL_Log("Reset done");
   return SDL_APP_CONTINUE; /* carry on with the program! */
 }
 
@@ -96,7 +97,21 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   SDL_SetRenderDrawColor(renderer, 0, 0, 0,
                          SDL_ALPHA_OPAQUE); /* black, full alpha */
   SDL_RenderClear(renderer);                /* start with a blank canvas. */
-  dnes_clock();
+  const bool *keys = SDL_GetKeyboardState(NULL);
+  if (keys[SDL_SCANCODE_C] && !next_inst) {
+    next_inst = true;
+  } else if (keys[SDL_SCANCODE_C] && next_inst) {
+    // nothing, wait for release
+  } else if (!keys[SDL_SCANCODE_C] && next_inst) {
+    SDL_Log("clock");
+    do {
+      dnes_clock();
+    } while (!cpu_inst_done());
+    do {
+      dnes_clock();
+    } while (cpu_inst_done());
+    next_inst = false;
+  }
   draw_cpu(516, 2);
   draw_code(516, 72, 26);
   SDL_RenderPresent(renderer); /* put it all on the screen! */

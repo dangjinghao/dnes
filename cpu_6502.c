@@ -1194,7 +1194,7 @@ void cpu_disasm_code(addr_t addr, char *buf, size_t buf_size,
     operand[0] = '\0';
     len = 1;
   } else if (i.addr_mode == IMM) {
-    snprintf(operand, sizeof(operand), "#$%02X", b1);
+    snprintf(operand, sizeof(operand), "#%02X", b1);
     len = 2;
   } else if (i.addr_mode == ZP0) {
     snprintf(operand, sizeof(operand), "$%02X", b1);

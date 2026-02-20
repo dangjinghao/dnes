@@ -33,6 +33,7 @@ void dnes_clock() {
 
 void dnes_reset() {
   cpu_reset();
+  ppu_reset();
   system_clock = 0;
 }
 
