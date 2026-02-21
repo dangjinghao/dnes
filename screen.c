@@ -108,6 +108,7 @@ static void draw_code(int x, int y, int lines) {
 
 /* This function runs once at startup. */
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
+  (void)appstate;
   if (argc < 2) {
     SDL_Log("Empty arguments");
     return 1;
@@ -136,6 +137,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
 
 /* This function runs when a new event (mouse input, keypresses, etc) occurs. */
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
+  (void)appstate;
   if (event->type == SDL_EVENT_QUIT) {
     return SDL_APP_SUCCESS; /* end the program, reporting success to the OS. */
   }
@@ -186,8 +188,23 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
   return SDL_APP_CONTINUE; /* carry on with the program! */
 }
 
+static void detect_controller_input() {
+  const bool *state = SDL_GetKeyboardState(NULL);
+  ctrl_set_input(0, CTRL_UP, state[SDL_SCANCODE_UP]);
+  ctrl_set_input(0, CTRL_DOWN, state[SDL_SCANCODE_DOWN]);
+  ctrl_set_input(0, CTRL_LEFT, state[SDL_SCANCODE_LEFT]);
+  ctrl_set_input(0, CTRL_RIGHT, state[SDL_SCANCODE_RIGHT]);
+  ctrl_set_input(0, CTRL_A, state[SDL_SCANCODE_X]);
+  ctrl_set_input(0, CTRL_B, state[SDL_SCANCODE_Z]);
+  ctrl_set_input(0, CTRL_SELECT, state[SDL_SCANCODE_A]);
+  ctrl_set_input(0, CTRL_START, state[SDL_SCANCODE_S]);
+}
+
 /* This function runs once per frame, and is the heart of the program. */
 SDL_AppResult SDL_AppIterate(void *appstate) {
+  (void)appstate;
+  detect_controller_input();
+
   reset_screen();
   draw_cpu(516, 2);
   draw_code(516, 72, 13);
@@ -226,4 +243,6 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
 /* This function runs once at shutdown. */
 void SDL_AppQuit(void *appstate, SDL_AppResult result) {
   /* SDL will clean up the window/renderer for us. */
+  (void)appstate;
+  (void)result;
 }

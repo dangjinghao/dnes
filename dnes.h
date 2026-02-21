@@ -154,8 +154,20 @@ void dnes_insert_cartridge(char *rom_path);
 
 /// controller.c
 //
+enum ctrl_button {
+  CTRL_RIGHT = 0,
+  CTRL_LEFT = 1,
+  CTRL_DOWN = 2,
+  CTRL_UP = 3,
+  CTRL_START = 4,
+  CTRL_SELECT = 5,
+  CTRL_B = 6,
+  CTRL_A = 7,
+};
 
 void ctrl_register(struct bus *bus);
-
+void ctrl_set_input(byte_t player, enum ctrl_button b, bool pressed);
+void ctrl_reset();
+void ctrl_clear_input(byte_t player);
 
 #endif
