@@ -2,6 +2,7 @@
 #include "dnes.h"
 #include <SDL3/SDL.h>
 #include <stdlib.h>
+#include <string.h>
 
 static union {
   struct {
@@ -413,6 +414,10 @@ void ppu_reset() {
   control.reg = 0x00;
   vram_addr.reg = 0x0000;
   tram_addr.reg = 0x0000;
+  memset(ppu_screen_output, 0, sizeof(ppu_screen_output));
+  memset(ppu_pattern_table, 0, sizeof(ppu_pattern_table));
+  memset(palette_table, 0, sizeof(palette_table));
+  memset(name_table, 0, sizeof(name_table));
 }
 // ==============================================================================
 // Increment the background tile "pointer" one tile/column horizontally

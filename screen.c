@@ -53,6 +53,13 @@ static void draw_pattern_table(int table, int x, int y) {
     }
   }
 }
+
+static void reset_screen() {
+  SDL_SetRenderDrawColor(renderer, 0, 0, 0,
+                         SDL_ALPHA_OPAQUE); /* black, full alpha */
+  SDL_RenderClear(renderer);                /* start with a blank canvas. */
+}
+
 static const int WINDOW_WIDTH = 780;
 static const int WINDOW_HEIGHT = 480;
 static bool emu_run = false;
@@ -169,7 +176,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
       break;
     }
     case SDL_SCANCODE_SPACE: {
-      SDL_Log("TODO: start/pause running");
+      emu_run = !emu_run;
       break;
     }
     default:
@@ -181,10 +188,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
 
 /* This function runs once per frame, and is the heart of the program. */
 SDL_AppResult SDL_AppIterate(void *appstate) {
-  SDL_SetRenderDrawColor(renderer, 0, 0, 0,
-                         SDL_ALPHA_OPAQUE); /* black, full alpha */
-  SDL_RenderClear(renderer);                /* start with a blank canvas. */
-
+  reset_screen();
   draw_cpu(516, 2);
   draw_code(516, 72, 13);
 
@@ -210,6 +214,12 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
 
   SDL_RenderPresent(renderer); /* put it all on the screen! */
 
+  if (emu_run) {
+    do {
+      dnes_clock();
+    } while (!ppu_frame_complete);
+    ppu_frame_complete = false;
+  }
   return SDL_APP_CONTINUE; /* carry on with the program! */
 }
 
