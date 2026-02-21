@@ -147,7 +147,6 @@ static inline addr_t ppu_mbus_real_addr(addr_t addr) { return (addr & 0x0007); }
 static byte_t ppu_mbus_read(addr_t addr, bool read_only) {
   addr = ppu_mbus_real_addr(addr);
   byte_t data = 0x00;
-  errorfln("Reading PPU address: %#04X", addr);
   if (read_only) {
     // Reading from PPU registers can affect their contents
     // so this read only option is used for examining the
@@ -231,7 +230,6 @@ static byte_t ppu_mbus_read(addr_t addr, bool read_only) {
 }
 static void ppu_mbus_write(addr_t addr, byte_t data) {
   addr = ppu_mbus_real_addr(addr);
-  errorfln("Writing PPU address: %#04X", addr);
   switch (addr) {
   case 0x0000: // control
     control.reg = data;
@@ -739,7 +737,7 @@ void ppu_clock() {
         // offset Note: No PPU address bus offset required as it starts at
         // 0x0000
         bg_next_tile_lsb =
-            bus_read(pbus, (byte_t)((control.pattern_background << 12) +
+            bus_read(pbus, (addr_t)((control.pattern_background << 12) +
                                     ((uint16_t)bg_next_tile_id << 4) +
                                     (vram_addr.fine_y) + 0));
         break;
@@ -748,7 +746,7 @@ void ppu_clock() {
         // This is the same as above, but has a +8 offset to select the next bit
         // plane
         bg_next_tile_msb =
-            bus_read(pbus, (byte_t)((control.pattern_background << 12) +
+            bus_read(pbus, (addr_t)((control.pattern_background << 12) +
                                     ((uint16_t)bg_next_tile_id << 4) +
                                     (vram_addr.fine_y) + 8));
         break;

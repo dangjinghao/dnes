@@ -55,6 +55,7 @@ static void draw_pattern_table(int table, int x, int y) {
 }
 static const int WINDOW_WIDTH = 780;
 static const int WINDOW_HEIGHT = 480;
+static bool emu_run = false;
 static byte_t selected_palette = 0;
 
 static void draw_cpu(int x, int y) {
@@ -198,14 +199,14 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
 
   // Draw selection reticule around selected palette
   draw_rect(516 + selected_palette * (nSwatchSize * 5) - 1, 339,
-            (nSwatchSize * 4), nSwatchSize, COLOR_WHITE);
+            (nSwatchSize * 4) + 2, nSwatchSize + 2, COLOR_WHITE);
   draw_screen(0, 0);
 
   ppu_gen_pattern_table(0, selected_palette);
   ppu_gen_pattern_table(1, selected_palette);
 
   draw_pattern_table(0, 516, 348);
-  draw_pattern_table(1, 516 + 128, 348);
+  draw_pattern_table(1, 516 + 130, 348);
 
   SDL_RenderPresent(renderer); /* put it all on the screen! */
 
