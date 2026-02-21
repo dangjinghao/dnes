@@ -1,9 +1,12 @@
 cmake_minimum_required(VERSION 3.16)
-project(dnes)
+project(dnes LANGUAGES C)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu11 -Wall -Wextra -Wconversion -Wsign-conversion -Wno-unused-function -g")
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS ON)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 
 if(APPLE)
     list(APPEND CMAKE_PREFIX_PATH "/opt/homebrew")
@@ -24,6 +27,12 @@ set(SRC_FILES
 
 add_executable(dnes ${SRC_FILES})
 
-find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3-shared)
+
+target_compile_options(dnes PRIVATE
+    $<$<C_COMPILER_ID:MSVC>: /W4 /WX>
+    $<$<NOT:$<C_COMPILER_ID:MSVC>>: -Wall -Wextra -Wconversion -Wsign-conversion -Wno-unused-function>
+)
+
+find_package(SDL3 REQUIRED CONFIG)
 target_compile_definitions(dnes PRIVATE SDL_MAIN_USE_CALLBACKS)
 target_link_libraries(dnes PRIVATE SDL3::SDL3)
