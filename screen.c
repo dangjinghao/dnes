@@ -1,46 +1,38 @@
 #include "dnes.h"
-#include <stdio.h>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <SDL3/SDL_render.h>
+#include <stdio.h>
+
 /* We will use this renderer to draw into this window every frame. */
 static SDL_Window *window = NULL;
 static SDL_Renderer *renderer = NULL;
 
-static void draw_string(int x, int y, const char *str, uint32_t color) {
-  SDL_SetRenderDrawColor(renderer, color_extract_red(color),
-                         color_extract_green(color), color_extract_blue(color),
-                         color_extract_alpha(color));
-  SDL_RenderDebugText(renderer, x, y, str);
+static void draw_string(int x, int y, const char *str,
+                        struct ppu_color *ppu_color) {
+  SDL_SetRenderDrawColor(renderer, ppu_color->r, ppu_color->g, ppu_color->b,
+                         ppu_color->a);
+  SDL_RenderDebugText(renderer, (float)x, (float)y, str);
 }
 
-static void fill_rect_SDL_color(int x, int y, int w, int h,
-                                struct SDL_Color *color) {
+static void fill_rect_ppu_color(int x, int y, int w, int h,
+                                struct ppu_color *color) {
   SDL_SetRenderDrawColor(renderer, color->r, color->g, color->b, color->a);
-  SDL_FRect rect = {x, y, w, h};
+  SDL_FRect rect = {(float)x, (float)y, (float)w, (float)h};
   SDL_RenderFillRect(renderer, &rect);
 }
 
-static void fill_rect(int x, int y, int w, int h, uint32_t color) {
-  fill_rect_SDL_color(x, y, w, h,
-                      &(struct SDL_Color){color_extract_red(color),
-                                          color_extract_green(color),
-                                          color_extract_blue(color),
-                                          color_extract_alpha(color)});
-}
+static void draw_rect(int x, int y, int w, int h, struct ppu_color *color) {
+  SDL_SetRenderDrawColor(renderer, color->r, color->g, color->b, color->a);
 
-static void draw_rect(int x, int y, int w, int h, uint32_t color) {
-  SDL_SetRenderDrawColor(renderer, color_extract_red(color),
-                         color_extract_green(color), color_extract_blue(color),
-                         color_extract_alpha(color));
-  SDL_FRect rect = {x, y, w, h};
+  SDL_FRect rect = {(float)x, (float)y, (float)w, (float)h};
   SDL_RenderRect(renderer, &rect);
 }
 
 static void draw_screen(int x, int y) {
   for (int row = 0; row < 240; row++) {
     for (int col = 0; col < 256; col++) {
-      fill_rect_SDL_color(x + col * 2, y + row * 2, 2, 2,
+      fill_rect_ppu_color(x + col * 2, y + row * 2, 2, 2,
                           &ppu_screen_output[row][col]);
     }
   }
@@ -49,7 +41,7 @@ static void draw_screen(int x, int y) {
 static void draw_pattern_table(int table, int x, int y) {
   for (int row = 0; row < 128; row++) {
     for (int col = 0; col < 128; col++) {
-      fill_rect_SDL_color(x + col, y + row, 2, 2,
+      fill_rect_ppu_color(x + col, y + row, 2, 2,
                           &ppu_pattern_table[table][row][col]);
     }
   }
@@ -102,7 +94,7 @@ static void draw_code(int x, int y, int lines) {
                     sizeof(line_buf) - str_used_len, &str_used_len,
                     &inst_byte_len);
 
-    start_addr += inst_byte_len;
+    start_addr += (addr_t)inst_byte_len;
     draw_string(x, y + i * 10, line_buf, i == 0 ? COLOR_CYAN : COLOR_WHITE);
   }
 }
@@ -215,7 +207,7 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   const int nSwatchSize = 6;
   for (byte_t p = 0; p < 8; p++)   // For each palette
     for (byte_t s = 0; s < 4; s++) // For each index
-      fill_rect_SDL_color(516 + p * (nSwatchSize * 5) + s * nSwatchSize, 340,
+      fill_rect_ppu_color(516 + p * (nSwatchSize * 5) + s * nSwatchSize, 340,
                           nSwatchSize, nSwatchSize,
                           ppu_get_color_from_palette(p, s));
 

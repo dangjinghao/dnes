@@ -1,8 +1,6 @@
 #include "dnes.h"
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
 #include <stdio.h>
+
 static struct {
   byte_t P; // Status register
   byte_t A;

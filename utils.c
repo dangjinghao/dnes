@@ -1,7 +1,5 @@
 #include "dnes.h"
-#include <SDL3/SDL.h>
 #include <stdarg.h>
-#include <stdint.h>
 #include <stdio.h>
 void serrorf(char *file_name, size_t line, char *fmt, ...) {
   fprintf(stderr, "%s:%lu ", file_name, line);
@@ -11,9 +9,9 @@ void serrorf(char *file_name, size_t line, char *fmt, ...) {
   va_end(args);
 }
 
-const uint32_t COLOR_RED = 0xFF0000FF;
-const uint32_t COLOR_GREEN = 0x00FF00FF;
-const uint32_t COLOR_BLUE = 0x0000FFFF;
-const uint32_t COLOR_WHITE = 0xFFFFFFFF;
-const uint32_t COLOR_BLACK = 0x000000FF;
-const uint32_t COLOR_CYAN = 0x00FFFFFF;
+struct ppu_color *COLOR_RED = &(struct ppu_color){0xFF, 0x00, 0x00, 0xFF};
+struct ppu_color *COLOR_GREEN = &(struct ppu_color){0x00, 0xFF, 0x00, 0xFF};
+struct ppu_color *COLOR_BLUE = &(struct ppu_color){0x00, 0x00, 0xFF, 0xFF};
+struct ppu_color *COLOR_WHITE = &(struct ppu_color){0xFF, 0xFF, 0xFF, 0xFF};
+struct ppu_color *COLOR_BLACK = &(struct ppu_color){0x00, 0x00, 0x00, 0xFF};
+struct ppu_color *COLOR_CYAN = &(struct ppu_color){0x00, 0xFF, 0xFF, 0xFF};

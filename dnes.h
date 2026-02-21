@@ -1,12 +1,13 @@
 #ifndef _DNES_H
 #define _DNES_H
-#include <SDL3/SDL.h>
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
 // The width of address is 16b
 typedef uint16_t addr_t;
+// 1 byte is 8b
 typedef uint8_t byte_t;
 
 /// bus.c
@@ -79,9 +80,14 @@ extern bool ppu_frame_complete;
 void ppu_clock();
 void ppu_reset();
 void ppu_gen_pattern_table(byte_t i, byte_t palette);
-struct SDL_Color *ppu_get_color_from_palette(byte_t palette_idx, byte_t px);
-extern struct SDL_Color ppu_screen_output[240][256];
-extern struct SDL_Color ppu_pattern_table[2][128][128];
+
+struct ppu_color {
+  byte_t r, g, b, a;
+};
+
+struct ppu_color *ppu_get_color_from_palette(byte_t palette_idx, byte_t px);
+extern struct ppu_color ppu_screen_output[240][256];
+extern struct ppu_color ppu_pattern_table[2][128][128];
 /// cartridge.c
 //
 
@@ -113,25 +119,13 @@ void serrorf(char *file_name, size_t line, char *fmt, ...)
 
 #define TODO() assert(0 && "todo")
 
-extern const uint32_t COLOR_RED;
-extern const uint32_t COLOR_GREEN;
-extern const uint32_t COLOR_BLUE;
-extern const uint32_t COLOR_WHITE;
-extern const uint32_t COLOR_BLACK;
-extern const uint32_t COLOR_CYAN;
-
-static inline byte_t color_extract_red(uint32_t color) {
-  return (color >> 24) & 0xFF;
-}
-static inline byte_t color_extract_green(uint32_t color) {
-  return (color >> 16) & 0xFF;
-}
-static inline byte_t color_extract_blue(uint32_t color) {
-  return (color >> 8) & 0xFF;
-}
-static inline byte_t color_extract_alpha(uint32_t color) {
-  return (color >> 0) & 0xFF;
-}
+// color bytes
+extern struct ppu_color *COLOR_RED;
+extern struct ppu_color *COLOR_GREEN;
+extern struct ppu_color *COLOR_BLUE;
+extern struct ppu_color *COLOR_WHITE;
+extern struct ppu_color *COLOR_BLACK;
+extern struct ppu_color *COLOR_CYAN;
 
 // mapper_*.c
 

@@ -1,5 +1,4 @@
 #include "dnes.h"
-#include <stdio.h>
 
 static void mbus_ready() {
   static struct bus mbus;

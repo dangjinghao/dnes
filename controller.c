@@ -1,4 +1,5 @@
 #include "dnes.h"
+
 static byte_t controller_state[2];
 static byte_t controller[2];
 

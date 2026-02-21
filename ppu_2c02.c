@@ -1,7 +1,5 @@
 
 #include "dnes.h"
-#include <SDL3/SDL.h>
-#include <stdlib.h>
 #include <string.h>
 
 static union {
@@ -91,11 +89,11 @@ static struct bus *pbus;
 
 static byte_t name_table[2][1024];
 static byte_t palette_table[32];
-struct SDL_Color ppu_pattern_table[2][128][128];
+struct ppu_color ppu_pattern_table[2][128][128];
 
-struct SDL_Color ppu_screen_output[240][256];
+struct ppu_color ppu_screen_output[240][256];
 
-static struct SDL_Color screen_color[0x40] = {
+static struct ppu_color screen_color[0x40] = {
     {84, 84, 84, 255},    {0, 30, 116, 255},    {8, 16, 144, 255},
     {48, 0, 136, 255},    {68, 0, 100, 255},    {92, 0, 48, 255},
     {84, 4, 0, 255},      {60, 24, 0, 255},     {32, 42, 0, 255},
@@ -125,9 +123,9 @@ static struct SDL_Color screen_color[0x40] = {
  *
  * @param palette_idx
  * @param px the 2b pixel index
- * @return struct SDL_Color*
+ * @return struct ppu_color*
  */
-struct SDL_Color *ppu_get_color_from_palette(byte_t palette_idx, byte_t px) {
+struct ppu_color *ppu_get_color_from_palette(byte_t palette_idx, byte_t px) {
   // This is a convenience function that takes a specified palette and pixel
   // index and returns the appropriate screen colour.
   // "0x3F00"       - Offset into PPU addressable range where palettes are
@@ -562,7 +560,7 @@ static void clock_update_shifters() {
 bool ppu_frame_complete = false;
 bool ppu_nmi = false;
 
-static void screen_output_set_pixel(int x, int y, struct SDL_Color *color) {
+static void screen_output_set_pixel(int x, int y, struct ppu_color *color) {
   if (x < 0 || x >= 256 || y < 0 || y >= 240) {
     return;
   }
@@ -570,7 +568,7 @@ static void screen_output_set_pixel(int x, int y, struct SDL_Color *color) {
 }
 
 static void pattern_table_set_pixel(int table, int x, int y,
-                                    struct SDL_Color *color) {
+                                    struct ppu_color *color) {
   if (table < 0 || table >= 2 || x < 0 || x >= 128 || y < 0 || y >= 128) {
     return;
   }

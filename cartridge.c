@@ -1,6 +1,5 @@
 #include "dnes.h"
 #include <errno.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -165,6 +164,4 @@ void cart_pop() {
   free(chr_memory);
 }
 
-void cart_reset(){
-  mapper->reset();
-}
+void cart_reset() { mapper->reset(); }

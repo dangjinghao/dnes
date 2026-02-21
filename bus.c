@@ -1,5 +1,4 @@
 #include "dnes.h"
-#include <stdbool.h>
 #include <stdlib.h>
 
 static bool bus_valid(struct bus *bus) {
@@ -59,14 +58,14 @@ void bus_write(struct bus *bus, addr_t addr, byte_t data) {
   struct bus_device *d = bus_fetch_device(bus, addr);
   if (!d) {
     errorfln("Failed to write data %#02X at invalid address %#04X: Can't found "
-           "valid device",
-           data, addr);
+             "valid device",
+             data, addr);
     return;
   }
   if (!d->device.write) {
     errorfln("Failed to write data %#02X at invalid address %#04X: this device "
-           "isn't writeable",
-           data, addr);
+             "isn't writeable",
+             data, addr);
     return;
   }
   d->device.write(addr, data);
@@ -82,8 +81,8 @@ byte_t bus_read(struct bus *bus, addr_t addr) {
   }
   if (!d->device.read) {
     errorfln("Failed to read from invalid address %#04X: this device "
-           "isn't readable",
-           addr);
+             "isn't readable",
+             addr);
     return 0x00;
   }
   return d->device.read(addr, false);
