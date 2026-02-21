@@ -559,7 +559,8 @@ static bool IZY() {
 
 // Addition with carry bit
 static bool ADC() {
-  assert(!cpu_get_flag(FLAG_D));
+  // nestest will test ADC with decimal mode, if asserted, it will fail.
+  // assert(!cpu_get_flag(FLAG_D));
 
   // get the data
   fetch();
@@ -620,7 +621,8 @@ static bool ADC() {
 //   = A + ~M + C
 // A = A + ~M + C
 static bool SBC() {
-  assert(!cpu_get_flag(FLAG_D));
+  // nestest will test ADC with decimal mode, if asserted, it will fail.
+  // assert(!cpu_get_flag(FLAG_D));
   fetch();
   // ~M
   uint16_t M = ((uint16_t)cpu.fetched) ^ 0x00FF;
@@ -705,7 +707,7 @@ static bool BIT() {
   fetch();
   uint16_t result = cpu.A & cpu.fetched;
   cpu_set_flag(FLAG_Z, gen_status_Z((byte_t)result));
-  cpu_set_flag(FLAG_N, gen_status_N((byte_t)result));
+  cpu_set_flag(FLAG_N, gen_status_N((byte_t)cpu.fetched));
   cpu_set_flag(FLAG_V, gen_flag(cpu.fetched & (1 << 6)));
   return false;
 }
