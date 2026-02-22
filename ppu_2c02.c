@@ -141,10 +141,8 @@ struct ppu_color *ppu_get_color_from_palette(byte_t palette_idx, byte_t px) {
   // will map the address onto the seperate small RAM attached to the PPU bus.
 }
 
-static inline addr_t ppu_mbus_real_addr(addr_t addr) { return (addr & 0x0007); }
-
 static byte_t ppu_mbus_read(addr_t addr, bool read_only) {
-  addr = ppu_mbus_real_addr(addr);
+  addr &= 0x0007;
   byte_t data = 0x00;
   if (read_only) {
     // Reading from PPU registers can affect their contents
@@ -228,7 +226,7 @@ static byte_t ppu_mbus_read(addr_t addr, bool read_only) {
   return data;
 }
 static void ppu_mbus_write(addr_t addr, byte_t data) {
-  addr = ppu_mbus_real_addr(addr);
+  addr &= 0x0007;
   switch (addr) {
   case 0x0000: // control
     control.reg = data;
