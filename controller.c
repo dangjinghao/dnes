@@ -10,9 +10,9 @@ static void ctrl_write(addr_t addr, byte_t data) {
 }
 
 static byte_t ctrl_read(addr_t addr, bool read_only) {
-  (void)read_only;
   byte_t data = (controller_state[ctrl_real_addr(addr)] & 0x80) > 0;
-  controller_state[ctrl_real_addr(addr)] <<= 1;
+  if (!read_only)
+    controller_state[ctrl_real_addr(addr)] <<= 1;
   return data;
 }
 
