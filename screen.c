@@ -4,9 +4,15 @@
 #include <SDL3/SDL_render.h>
 #include <stdio.h>
 
+static const int WINDOW_WIDTH = 780;
+static const int WINDOW_HEIGHT = 480;
+
 /* We will use this renderer to draw into this window every frame. */
 static SDL_Window *window = NULL;
 static SDL_Renderer *renderer = NULL;
+
+static bool emu_run = false;
+static byte_t selected_palette = 0;
 
 static void draw_string(int x, int y, const char *str,
                         struct ppu_color *ppu_color) {
@@ -47,16 +53,11 @@ static void draw_pattern_table(int table, int x, int y) {
   }
 }
 
-static void reset_screen() {
+static void reset_display() {
   SDL_SetRenderDrawColor(renderer, 0, 0, 0,
                          SDL_ALPHA_OPAQUE); /* black, full alpha */
   SDL_RenderClear(renderer);                /* start with a blank canvas. */
 }
-
-static const int WINDOW_WIDTH = 780;
-static const int WINDOW_HEIGHT = 480;
-static bool emu_run = false;
-static byte_t selected_palette = 0;
 
 static void draw_cpu(int x, int y) {
   draw_string(x, y, "STATUS:", COLOR_WHITE);
@@ -97,6 +98,21 @@ static void draw_code(int x, int y, int lines) {
     start_addr += (addr_t)inst_byte_len;
     draw_string(x, y + i * 10, line_buf, i == 0 ? COLOR_CYAN : COLOR_WHITE);
   }
+}
+
+static void draw_palettes() {
+  // Draw Palettes & Pattern Tables
+  // ==============================================
+  const int nSwatchSize = 6;
+  for (byte_t p = 0; p < 8; p++)   // For each palette
+    for (byte_t s = 0; s < 4; s++) // For each index
+      fill_rect_ppu_color(516 + p * (nSwatchSize * 5) + s * nSwatchSize, 340,
+                          nSwatchSize, nSwatchSize,
+                          ppu_get_color_from_palette(p, s));
+
+  // Draw selection reticule around selected palette
+  draw_rect(516 + selected_palette * (nSwatchSize * 5) - 1, 339,
+            (nSwatchSize * 4) + 2, nSwatchSize + 2, COLOR_WHITE);
 }
 
 /* This function runs once at startup. */
@@ -198,29 +214,18 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   (void)appstate;
   detect_controller_input();
 
-  reset_screen();
+  reset_display();
+
   draw_cpu(516, 2);
   draw_code(516, 72, 13);
 
-  // Draw Palettes & Pattern Tables
-  // ==============================================
-  const int nSwatchSize = 6;
-  for (byte_t p = 0; p < 8; p++)   // For each palette
-    for (byte_t s = 0; s < 4; s++) // For each index
-      fill_rect_ppu_color(516 + p * (nSwatchSize * 5) + s * nSwatchSize, 340,
-                          nSwatchSize, nSwatchSize,
-                          ppu_get_color_from_palette(p, s));
-
-  // Draw selection reticule around selected palette
-  draw_rect(516 + selected_palette * (nSwatchSize * 5) - 1, 339,
-            (nSwatchSize * 4) + 2, nSwatchSize + 2, COLOR_WHITE);
-  draw_screen(0, 0);
-
+  draw_palettes();
   ppu_gen_pattern_table(0, selected_palette);
   ppu_gen_pattern_table(1, selected_palette);
-
   draw_pattern_table(0, 516, 348);
   draw_pattern_table(1, 516 + 130, 348);
+
+  draw_screen(0, 0);
 
   SDL_RenderPresent(renderer); /* put it all on the screen! */
 
