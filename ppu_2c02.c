@@ -68,7 +68,7 @@ static union loopy_register
 static byte_t fine_x = 0x00;
 
 // Internal communications
-static byte_t address_latch = 0x00;
+static bool address_latch = false;
 static byte_t ppu_data_buffer = 0x00;
 
 // Pixel "dot" position information
@@ -89,8 +89,8 @@ static struct bus *pbus;
 
 static byte_t name_table[2][1024];
 static byte_t palette_table[32];
-struct ppu_color ppu_pattern_table[2][128][128];
 
+struct ppu_color ppu_pattern_table[2][128][128];
 struct ppu_color ppu_screen_output[240][256];
 
 static struct ppu_color screen_color[0x40] = {
@@ -140,7 +140,19 @@ struct ppu_color *ppu_get_color_from_palette(byte_t palette_idx, byte_t px) {
   // ppuRead()
   // will map the address onto the seperate small RAM attached to the PPU bus.
 }
-
+/* $2000: CTRL register, which is responsible for configuring the PPU to render
+ * in different ways.
+ * $2001: MASK register, which decides whether backgrounds or sprites are
+ * being drawn and what's happening at the edges of the screen.
+ * $2002: STATUS register, which contains various flags that tell us when can we
+ * render the image safely.
+ * $2003: TODO
+ * $2004: TODO
+ * $2005: SCROLL register
+ * $2006: PPUADDR register
+ * $2007: PPUDATA register
+ * both of $2006 and $2007 are used to read and write data to the PPU
+ */
 static byte_t ppu_mbus_read(addr_t addr, bool read_only) {
   addr &= 0x0007;
   byte_t data = 0x00;
@@ -170,7 +182,7 @@ static byte_t ppu_mbus_read(addr_t addr, bool read_only) {
     case 0x0007: // PPU data
       break;
     default:
-      errorfln("Unknown PPU address to read: %#04X.", addr);
+      errorfln("Unknown PPU address to read: %#06X.", addr);
     }
   } else {
     switch (addr) {
@@ -189,9 +201,8 @@ static byte_t ppu_mbus_read(addr_t addr, bool read_only) {
       data = (status.reg & 0xE0) | (ppu_data_buffer & 0x1F);
       // Clear the vertical blanking flag
       status.vertical_blank = 0;
-
       // Reset Loopy's Address latch flag
-      address_latch = 0;
+      address_latch = false;
       break;
     case 0x0003: // OAM address
       break;
@@ -220,7 +231,7 @@ static byte_t ppu_mbus_read(addr_t addr, bool read_only) {
       vram_addr.reg += (control.increment_mode ? 32 : 1);
       break;
     default:
-      errorfln("Unknown PPU address to read: %#04X.", addr);
+      errorfln("Unknown PPU address to read: %#06X.", addr);
     }
   }
   return data;
@@ -243,28 +254,28 @@ static void ppu_mbus_write(addr_t addr, byte_t data) {
   case 0x0004: // OAM data
     break;
   case 0x0005: // scroll
-    if (address_latch == 0) {
+    if (address_latch == false) {
       // First write to scroll register contains X offset in pixel space
       // which we split into coarse and fine x values
       fine_x = data & 0x07;
       tram_addr.coarse_x = data >> 3;
-      address_latch = 1;
+      address_latch = true;
     } else {
       // First write to scroll register contains Y offset in pixel space
       // which we split into coarse and fine Y values
       tram_addr.fine_y = data & 0x07;
       tram_addr.coarse_y = data >> 3;
-      address_latch = 0;
+      address_latch = false;
     }
     break;
   case 0x0006: // PPU address
-    if (address_latch == 0) {
+    if (address_latch == false) {
       // PPU address bus can be accessed by CPU via the ADDR and DATA
       // registers. The fisrt write to this register latches the high byte
       // of the address, the second is the low byte. Note the writes
       // are stored in the tram register...
-      tram_addr.reg = (uint16_t)((data & 0x3F) << 8) | (tram_addr.reg & 0x00FF);
-      address_latch = 1;
+      tram_addr.reg = (addr_t)((data & 0x3F) << 8) | (tram_addr.reg & 0x00FF);
+      address_latch = true;
     } else {
       // ...when a whole address has been written, the internal vram address
       // buffer is updated. Writing to the PPU is unwise during rendering
@@ -272,7 +283,7 @@ static void ppu_mbus_write(addr_t addr, byte_t data) {
       // rendering the scanline position.
       tram_addr.reg = (tram_addr.reg & 0xFF00) | data;
       vram_addr = tram_addr;
-      address_latch = 0;
+      address_latch = false;
     }
     break;
   case 0x0007: // PPU data
@@ -285,7 +296,7 @@ static void ppu_mbus_write(addr_t addr, byte_t data) {
     vram_addr.reg += (control.increment_mode ? 32 : 1);
     break;
   default:
-    errorfln("Unknown PPU address to write: %#04X.", addr);
+    errorfln("Unknown PPU address to write: %#06X.", addr);
   }
 }
 
@@ -393,7 +404,7 @@ void ppu_ext_register(struct bus *pbus) {
 
 void ppu_reset() {
   fine_x = 0x00;
-  address_latch = 0x00;
+  address_latch = false;
   ppu_data_buffer = 0x00;
   scanline = 0;
   cycle = 0;
@@ -851,15 +862,13 @@ void ppu_clock() {
 }
 
 void ppu_gen_pattern_table(byte_t i, byte_t palette) {
-  // This function draw the CHR ROM for a given pattern table into
-  // an olc::Sprite, using a specified palette. Pattern tables consist
-  // of 16x16 "tiles or characters". It is independent of the running
-  // emulation and using it does not change the systems state, though
-  // it gets all the data it needs from the live system. Consequently,
-  // if the game has not yet established palettes or mapped to relevant
-  // CHR ROM banks, the sprite may look empty. This approach permits a
-  // "live" extraction of the pattern table exactly how the NES, and
-  // ultimately the player would see it.
+  // Pattern tables consist of 16x16 "tiles or characters". It is independent of
+  // the running emulation and using it does not change the systems state,
+  // though it gets all the data it needs from the live system. Consequently, if
+  // the game has not yet established palettes or mapped to relevant CHR ROM
+  // banks, the sprite may look empty. This approach permits a "live" extraction
+  // of the pattern table exactly how the NES, and ultimately the player would
+  // see it.
 
   // A tile consists of 8x8 pixels. On the NES, pixels are 2 bits, which
   // gives an index into 4 different colours of a specific palette. There
@@ -890,7 +899,7 @@ void ppu_gen_pattern_table(byte_t i, byte_t palette) {
     for (uint16_t nTileX = 0; nTileX < 16; nTileX++) {
       // Convert the 2D tile coordinate into a 1D offset into the pattern
       // table memory.
-      uint16_t nOffset = nTileY * 256 + nTileX * 16;
+      uint16_t nOffset = nTileY * 16 * 16 + nTileX * 16;
 
       // Now loop through 8 rows of 8 pixels
       for (uint16_t row = 0; row < 8; row++) {

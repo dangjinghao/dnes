@@ -1180,10 +1180,10 @@ void cpu_disasm_code(addr_t addr, char *buf, size_t buf_size,
     return;
   }
 
-  byte_t opcode = bus_read_only(cpu.bus, addr);
+  byte_t opcode = bus_read(cpu.bus, addr);
   struct inst i = inst_lookup[opcode];
-  byte_t b1 = bus_read_only(cpu.bus, (addr_t)(addr + 1));
-  byte_t b2 = bus_read_only(cpu.bus, (addr_t)(addr + 2));
+  byte_t b1 = bus_read(cpu.bus, (addr_t)(addr + 1));
+  byte_t b2 = bus_read(cpu.bus, (addr_t)(addr + 2));
 
   char operand[32] = {0};
   size_t len = 1;
