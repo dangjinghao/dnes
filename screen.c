@@ -18,7 +18,7 @@ static SDL_Renderer *renderer = NULL;
 static SDL_Texture *screen_texture = NULL;
 static SDL_Texture *pattern_textures[2] = {NULL, NULL};
 
-static bool emu_run = false;
+static bool emu_run = true;
 static byte_t selected_palette = 0;
 static bool show_oam = false;
 static bool show_debug_info = false;

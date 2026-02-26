@@ -129,7 +129,8 @@ void serrorf(char *file_name, size_t line, char *fmt, ...)
 #define errorfln(fmt, ...)                                                     \
   serrorf(__FILE_NAME__, __LINE__, fmt "\n", ##__VA_ARGS__)
 
-#define TODO() assert(0 && "todo")
+void todo_exit(const char *file_name, size_t line);
+#define TODO() todo_exit(__FILE_NAME__, __LINE__)
 
 // color bytes
 extern struct ppu_color *COLOR_RED;
