@@ -6,11 +6,13 @@ static byte_t controller[2];
 static inline addr_t ctrl_real_addr(addr_t addr) { return (addr & 0x0001); }
 static void ctrl_write(addr_t addr, byte_t data) {
   (void)data;
+  // "Lock In" controller state at this time
   controller_state[ctrl_real_addr(addr)] = controller[ctrl_real_addr(addr)];
 }
 
 static byte_t ctrl_read(addr_t addr, bool read_only) {
-  // read the most significant bit of the controller state, then shift the state to the left
+  // read the most significant bit of the controller state, then shift the state
+  // to the left
   byte_t data = is_byte_neg(controller_state[ctrl_real_addr(addr)]);
   if (!read_only)
     controller_state[ctrl_real_addr(addr)] <<= 1;
