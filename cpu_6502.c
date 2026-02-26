@@ -386,8 +386,6 @@ static inline addr_t comb_addr(byte_t hi, byte_t lo) {
   return (addr_t)(((addr_t)hi << 8) | (addr_t)lo);
 }
 
-static inline bool is_byte_neg(byte_t B) { return (B & 0x80) != 0; }
-
 static inline byte_t addr_hi(addr_t a) { return (byte_t)(a >> 8); }
 static inline byte_t addr_lo(addr_t a) { return (byte_t)(a & 0xFF); }
 

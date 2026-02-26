@@ -110,6 +110,8 @@ enum mirroring_mode cart_get_mirror_mode();
 /// utils.c
 //
 
+static inline bool is_byte_neg(byte_t B) { return (B & 0x80) != 0; }
+
 // format: `<file_name>:<line_number> message`
 void serrorf(char *file_name, size_t line, char *fmt, ...)
     __attribute__((format(printf, 3, 4)));

@@ -10,7 +10,8 @@ static void ctrl_write(addr_t addr, byte_t data) {
 }
 
 static byte_t ctrl_read(addr_t addr, bool read_only) {
-  byte_t data = (controller_state[ctrl_real_addr(addr)] & 0x80) > 0;
+  // read the most significant bit of the controller state, then shift the state to the left
+  byte_t data = is_byte_neg(controller_state[ctrl_real_addr(addr)]);
   if (!read_only)
     controller_state[ctrl_real_addr(addr)] <<= 1;
   return data;
