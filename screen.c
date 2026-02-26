@@ -6,6 +6,8 @@
 
 static const int WINDOW_WIDTH = 780;
 static const int WINDOW_HEIGHT = 480;
+static const double NES_NTSC_FPS = 60.0988;
+static const double SLOW_FRAME_TOLERANCE = 1.05;
 
 /* We will use this renderer to draw into this window every frame. */
 static SDL_Window *window = NULL;
@@ -14,6 +16,43 @@ static SDL_Renderer *renderer = NULL;
 static bool emu_run = false;
 static byte_t selected_palette = 0;
 static bool show_oam = false;
+
+static double frame_seconds_from_counter_delta(uint64_t counter_delta,
+                                               uint64_t counter_freq) {
+  if (counter_freq == 0) {
+    return 0.0;
+  }
+  return (double)counter_delta / (double)counter_freq;
+}
+
+static bool frame_is_too_slow(double frame_seconds) {
+  const double target_frame_seconds = 1.0 / NES_NTSC_FPS;
+  return frame_seconds > (target_frame_seconds * SLOW_FRAME_TOLERANCE);
+}
+
+static void limit_to_nes_fps(uint64_t frame_start_counter,
+                             uint64_t counter_freq) {
+  if (counter_freq == 0) {
+    return;
+  }
+
+  const uint64_t now_counter = SDL_GetPerformanceCounter();
+  const uint64_t elapsed_counter = now_counter - frame_start_counter;
+  const double elapsed_seconds =
+      frame_seconds_from_counter_delta(elapsed_counter, counter_freq);
+  const double target_frame_seconds = 1.0 / NES_NTSC_FPS;
+
+  if (elapsed_seconds >= target_frame_seconds) {
+    return;
+  }
+
+  const double remaining_seconds = target_frame_seconds - elapsed_seconds;
+  const uint64_t remaining_ns = (uint64_t)(remaining_seconds * 1000000000.0);
+  if (remaining_ns > 0) {
+    SDL_DelayNS(remaining_ns);
+  }
+}
+
 static void draw_string(int x, int y, const char *str,
                         struct ppu_color *ppu_color) {
   SDL_SetRenderDrawColor(renderer, ppu_color->r, ppu_color->g, ppu_color->b,
@@ -232,6 +271,9 @@ static void detect_controller_input() {
 /* This function runs once per frame, and is the heart of the program. */
 SDL_AppResult SDL_AppIterate(void *appstate) {
   (void)appstate;
+  const uint64_t counter_freq = SDL_GetPerformanceFrequency();
+  const uint64_t frame_start_counter = SDL_GetPerformanceCounter();
+
   detect_controller_input();
 
   reset_display();
@@ -259,6 +301,18 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     } while (!ppu_frame_complete);
     ppu_frame_complete = false;
   }
+
+  const uint64_t frame_end_counter = SDL_GetPerformanceCounter();
+  const uint64_t frame_counter_delta = frame_end_counter - frame_start_counter;
+  const double frame_seconds =
+      frame_seconds_from_counter_delta(frame_counter_delta, counter_freq);
+
+  if (frame_is_too_slow(frame_seconds)) {
+    SDL_Log("Slow frame: %.3f ms (target %.3f ms)", frame_seconds * 1000.0,
+            (1000.0 / NES_NTSC_FPS));
+  }
+
+  limit_to_nes_fps(frame_start_counter, counter_freq);
   return SDL_APP_CONTINUE; /* carry on with the program! */
 }
 
