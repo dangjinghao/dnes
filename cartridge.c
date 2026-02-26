@@ -82,7 +82,7 @@ void cart_register_mbus(struct bus *mbus) {
   assert(chr_memory);
   bus_register(
       mbus, 0x4020, 0xFFFF,
-      &(struct bus_regparam){.read = cart_mbus_read, .write = cart_mbus_write});
+      (&(struct bus_regparam){.read = cart_mbus_read, .write = cart_mbus_write}));
 }
 
 void cart_register_pbus(struct bus *pbus) {
@@ -90,7 +90,7 @@ void cart_register_pbus(struct bus *pbus) {
   assert(chr_memory);
   bus_register(
       pbus, 0x0000, 0x1FFF,
-      &(struct bus_regparam){.read = cart_pbus_read, .write = cart_pbus_write});
+      (&(struct bus_regparam){.read = cart_pbus_read, .write = cart_pbus_write}));
 }
 
 void cart_load(const char *rom_path) {

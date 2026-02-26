@@ -17,9 +17,11 @@ struct bus_regparam {
   void (*write)(addr_t addr, byte_t data);
   byte_t (*read)(addr_t addr, bool read_only);
 };
+
 struct bus_device {
   addr_t start, end;
   struct bus_regparam device;
+  const char *reg_func_name;
 };
 struct bus {
   struct bus_device devices[16];
@@ -29,10 +31,11 @@ struct bus {
 void bus_write(struct bus *bus, addr_t addr, byte_t data);
 byte_t bus_read(struct bus *bus, addr_t addr);
 byte_t bus_read_only(struct bus *bus, addr_t addr);
-void bus_register(struct bus *bus, addr_t start, addr_t end,
-                  struct bus_regparam *p);
 void bus_ready(struct bus *bus);
-
+void bus_register_2(struct bus *bus, addr_t start, addr_t end,
+                    struct bus_regparam *p, const char *reg_func_name);
+#define bus_register(bus, start, end, p)                                       \
+  bus_register_2((bus), (start), (end), (p), __FUNCTION__)
 /// cpu_6502.c
 //
 

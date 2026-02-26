@@ -1,17 +1,19 @@
 #include "dnes.h"
 #include <stdlib.h>
 
-static bool bus_valid(struct bus *bus) {
+static void bus_must_valid(struct bus *bus) {
   if (bus->dev_count <= 1) {
-    return true;
+    return;
   }
 
   for (size_t i = 0; i + 1 < bus->dev_count; i++) {
     if (bus->devices[i].end >= bus->devices[i + 1].start) {
-      return false;
+      errorfln(
+          "Conflicted registered device in those register functions: %s & %s",
+          bus->devices[i].reg_func_name, bus->devices[i + 1].reg_func_name);
+      exit(1);
     }
   }
-  return true;
 }
 
 static int bus_addr_cmp(const void *a, const void *b) {
@@ -35,8 +37,8 @@ static struct bus_device *bus_fetch_device(struct bus *bus, addr_t addr) {
   return NULL;
 }
 
-void bus_register(struct bus *bus, addr_t start, addr_t end,
-                  struct bus_regparam *p) {
+void bus_register_2(struct bus *bus, addr_t start, addr_t end,
+                    struct bus_regparam *p, const char *reg_func_name) {
   assert(start <= end);
   assert(p);
   assert(bus->dev_count < sizeof(bus->devices) / sizeof(bus->devices[0]) &&
@@ -44,6 +46,7 @@ void bus_register(struct bus *bus, addr_t start, addr_t end,
   bus->devices[bus->dev_count].device = *p;
   bus->devices[bus->dev_count].start = start;
   bus->devices[bus->dev_count].end = end;
+  bus->devices[bus->dev_count].reg_func_name = reg_func_name;
   bus->dev_count += 1;
 }
 
@@ -51,7 +54,7 @@ void bus_ready(struct bus *bus) {
   // sort the registered addresses
   qsort(bus->devices, bus->dev_count, sizeof(bus->devices[0]), bus_addr_cmp);
   // check whether those addresses conflict
-  assert(bus_valid(bus));
+  bus_must_valid(bus);
 }
 
 void bus_write(struct bus *bus, addr_t addr, byte_t data) {

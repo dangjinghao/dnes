@@ -12,8 +12,7 @@ static void apu_write(addr_t addr, byte_t data) {
 }
 
 void apu_register(struct bus *bus) {
-  bus_register(bus, 0x4000, 0x4013,
-               &(struct bus_regparam){.read = apu_read, .write = apu_write});
-  bus_register(bus, 0x4015, 0x4015,
-               &(struct bus_regparam){.read = apu_read, .write = apu_write});
+  struct bus_regparam p = {.read = apu_read, .write = apu_write};
+  bus_register(bus, 0x4000, 0x4013, &p);
+  bus_register(bus, 0x4015, 0x4015, &p);
 }

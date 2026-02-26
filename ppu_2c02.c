@@ -303,7 +303,7 @@ static void ppu_mbus_write(addr_t addr, byte_t data) {
 void ppu_register_mbus(struct bus *mbus) {
   bus_register(
       mbus, 0x2000, 0x3FFF,
-      &(struct bus_regparam){.read = ppu_mbus_read, .write = ppu_mbus_write});
+      (&(struct bus_regparam){.read = ppu_mbus_read, .write = ppu_mbus_write}));
 }
 
 void ppu_mount_pbus(struct bus *bus) { pbus = bus; }
@@ -394,12 +394,12 @@ static byte_t ppu_palette_read(addr_t addr, bool readonly) {
 void ppu_ext_register(struct bus *pbus) {
   // name table register
   bus_register(pbus, 0x2000, 0x3EFF,
-               &(struct bus_regparam){.read = ppu_nametable_read,
-                                      .write = ppu_nametable_write});
+               (&(struct bus_regparam){.read = ppu_nametable_read,
+                                       .write = ppu_nametable_write}));
   // palette register
   bus_register(pbus, 0x3F00, 0x3FFF,
-               &(struct bus_regparam){.read = ppu_palette_read,
-                                      .write = ppu_palette_write});
+               (&(struct bus_regparam){.read = ppu_palette_read,
+                                       .write = ppu_palette_write}));
 }
 
 void ppu_reset() {
