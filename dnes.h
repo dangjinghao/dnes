@@ -26,6 +26,8 @@ struct bus_device {
 struct bus {
   struct bus_device devices[16];
   size_t dev_count;
+  addr_t mask; // mask of the bus address, e.g. 0x3FFF for 14-bit address
+  const char *name;
 };
 
 void bus_write(struct bus *bus, addr_t addr, byte_t data);
@@ -36,6 +38,8 @@ void bus_register_2(struct bus *bus, addr_t start, addr_t end,
                     struct bus_regparam *p, const char *reg_func_name);
 #define bus_register(bus, start, end, p)                                       \
   bus_register_2((bus), (start), (end), (p), __FUNCTION__)
+void bus_init(struct bus *bus, const char *name, addr_t mask);
+
 /// cpu_6502.c
 //
 
