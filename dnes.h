@@ -92,7 +92,7 @@ void ppu_gen_pattern_table(byte_t i, byte_t palette);
 
 struct ppu_color {
   byte_t r, g, b, a;
-};
+} __attribute__((packed));
 
 struct ppu_color *ppu_get_color_from_palette(byte_t palette_idx, byte_t px);
 extern struct ppu_color ppu_screen_output[240][256];
