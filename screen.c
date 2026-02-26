@@ -2,6 +2,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <SDL3/SDL_render.h>
+#include <SDL3/SDL_scancode.h>
 #include <stdio.h>
 
 static const int WINDOW_WIDTH = 780;
@@ -16,6 +17,7 @@ static SDL_Renderer *renderer = NULL;
 static bool emu_run = false;
 static byte_t selected_palette = 0;
 static bool show_oam = false;
+static bool show_debug_info = false;
 
 static double frame_seconds_from_counter_delta(uint64_t counter_delta,
                                                uint64_t counter_freq) {
@@ -30,8 +32,8 @@ static bool frame_is_too_slow(double frame_seconds) {
   return frame_seconds > (target_frame_seconds * SLOW_FRAME_TOLERANCE);
 }
 
-static void limit_to_nes_fps(uint64_t frame_start_counter,
-                             uint64_t counter_freq) {
+static void frame_limit_to_nes_fps(uint64_t frame_start_counter,
+                                   uint64_t counter_freq) {
   if (counter_freq == 0) {
     return;
   }
@@ -142,12 +144,6 @@ static void draw_code(int x, int y, int lines) {
 static void draw_oam(int x, int y, int lines) {
   char line_buf[256];
   for (int i = 0; i < lines; i++) {
-    // std::string s = hex(i, 2) + ": (" + std::to_string(nes.ppu.pOAM[i * 4 +
-    // 3])
-    // 	+ ", " + std::to_string(nes.ppu.pOAM[i * 4 + 0]) + ") "
-    // 	+ "ID: " + hex(nes.ppu.pOAM[i * 4 + 1], 2) +
-    // 	+" AT: " + hex(nes.ppu.pOAM[i * 4 + 2], 2);
-    // DrawString(x, y + i * 10, s);
     snprintf(line_buf, sizeof(line_buf), "%02X: (%3d, %3d) ID: %02X AT: %02X",
              i, ppu_oam_start[i * 4 + 3], ppu_oam_start[i * 4 + 0],
              ppu_oam_start[i * 4 + 1], ppu_oam_start[i * 4 + 2]);
@@ -156,8 +152,6 @@ static void draw_oam(int x, int y, int lines) {
 }
 
 static void draw_palettes() {
-  // Draw Palettes & Pattern Tables
-  // ==============================================
   const int nSwatchSize = 6;
   for (byte_t p = 0; p < 8; p++)   // For each palette
     for (byte_t s = 0; s < 4; s++) // For each index
@@ -209,7 +203,6 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
   if (event->type == SDL_EVENT_KEY_UP) {
     switch (event->key.scancode) {
     case SDL_SCANCODE_C: {
-      // SDL_Log("clock");
       do {
         dnes_clock();
       } while (!cpu_inst_done());
@@ -249,6 +242,10 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
       show_oam = !show_oam;
       break;
     }
+    case SDL_SCANCODE_TAB: {
+      show_debug_info = !show_debug_info;
+      break;
+    }
     default:
       break;
     }
@@ -278,29 +275,30 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
 
   reset_display();
 
-  draw_cpu(516, 2);
-  if (show_oam) {
-    draw_oam(516, 72, 26);
-  } else {
-    draw_code(516, 72, 26);
-  }
-
-  draw_palettes();
-  ppu_gen_pattern_table(0, selected_palette);
-  ppu_gen_pattern_table(1, selected_palette);
-  draw_pattern_table(0, 516, 348);
-  draw_pattern_table(1, 516 + 130, 348);
-
-  draw_screen(0, 0);
-
-  SDL_RenderPresent(renderer); /* put it all on the screen! */
-
   if (emu_run) {
     do {
       dnes_clock();
     } while (!ppu_frame_complete);
     ppu_frame_complete = false;
   }
+
+  if (show_debug_info) {
+    draw_cpu(516, 2);
+    if (show_oam) {
+      draw_oam(516, 72, 26);
+    } else {
+      draw_code(516, 72, 26);
+    }
+    draw_palettes();
+    ppu_gen_pattern_table(0, selected_palette);
+    ppu_gen_pattern_table(1, selected_palette);
+    draw_pattern_table(0, 516, 348);
+    draw_pattern_table(1, 516 + 130, 348);
+  }
+
+  draw_screen(0, 0);
+
+  SDL_RenderPresent(renderer); /* put it all on the screen! */
 
   const uint64_t frame_end_counter = SDL_GetPerformanceCounter();
   const uint64_t frame_counter_delta = frame_end_counter - frame_start_counter;
@@ -312,7 +310,7 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
             (1000.0 / NES_NTSC_FPS));
   }
 
-  limit_to_nes_fps(frame_start_counter, counter_freq);
+  frame_limit_to_nes_fps(frame_start_counter, counter_freq);
   return SDL_APP_CONTINUE; /* carry on with the program! */
 }
 
