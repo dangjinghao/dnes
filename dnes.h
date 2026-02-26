@@ -166,4 +166,8 @@ void ctrl_set_input(byte_t player, enum ctrl_button b, bool pressed);
 void ctrl_reset();
 void ctrl_clear_input(byte_t player);
 
+// apu.c
+
+void apu_register(struct bus *bus);
+
 #endif
