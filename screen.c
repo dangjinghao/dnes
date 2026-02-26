@@ -13,7 +13,7 @@ static SDL_Renderer *renderer = NULL;
 
 static bool emu_run = false;
 static byte_t selected_palette = 0;
-
+static bool show_oam = false;
 static void draw_string(int x, int y, const char *str,
                         struct ppu_color *ppu_color) {
   SDL_SetRenderDrawColor(renderer, ppu_color->r, ppu_color->g, ppu_color->b,
@@ -97,6 +97,22 @@ static void draw_code(int x, int y, int lines) {
 
     start_addr += (addr_t)inst_byte_len;
     draw_string(x, y + i * 10, line_buf, i == 0 ? COLOR_CYAN : COLOR_WHITE);
+  }
+}
+
+static void draw_oam(int x, int y, int lines) {
+  char line_buf[256];
+  for (int i = 0; i < lines; i++) {
+    // std::string s = hex(i, 2) + ": (" + std::to_string(nes.ppu.pOAM[i * 4 +
+    // 3])
+    // 	+ ", " + std::to_string(nes.ppu.pOAM[i * 4 + 0]) + ") "
+    // 	+ "ID: " + hex(nes.ppu.pOAM[i * 4 + 1], 2) +
+    // 	+" AT: " + hex(nes.ppu.pOAM[i * 4 + 2], 2);
+    // DrawString(x, y + i * 10, s);
+    snprintf(line_buf, sizeof(line_buf), "%02X: (%3d, %3d) ID: %02X AT: %02X",
+             i, ppu_oam_start[i * 4 + 3], ppu_oam_start[i * 4 + 0],
+             ppu_oam_start[i * 4 + 1], ppu_oam_start[i * 4 + 2]);
+    draw_string(x, y + i * 10, line_buf, COLOR_WHITE);
   }
 }
 
@@ -190,6 +206,10 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
       emu_run = !emu_run;
       break;
     }
+    case SDL_SCANCODE_O: {
+      show_oam = !show_oam;
+      break;
+    }
     default:
       break;
     }
@@ -217,7 +237,11 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   reset_display();
 
   draw_cpu(516, 2);
-  draw_code(516, 72, 13);
+  if (show_oam) {
+    draw_oam(516, 72, 26);
+  } else {
+    draw_code(516, 72, 26);
+  }
 
   draw_palettes();
   ppu_gen_pattern_table(0, selected_palette);

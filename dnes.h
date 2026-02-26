@@ -80,6 +80,8 @@ void ppu_ext_register(struct bus *pbus);
 
 extern bool ppu_nmi;
 extern bool ppu_frame_complete;
+extern byte_t *ppu_oam_start;
+
 void ppu_clock();
 void ppu_reset();
 void ppu_gen_pattern_table(byte_t i, byte_t palette);
