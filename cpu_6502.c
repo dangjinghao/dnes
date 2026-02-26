@@ -1071,7 +1071,7 @@ static bool TYA() {
 }
 // Invalid instruction trap
 static bool XXX() {
-  errorfln("Catch illegal cpu.opcode: %02X", cpu.opcode);
+  errorfln("Catch illegal cpu.opcode: %#04X", cpu.opcode);
   return false;
 }
 
