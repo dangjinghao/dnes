@@ -97,6 +97,7 @@ struct ppu_color {
 struct ppu_color *ppu_get_color_from_palette(byte_t palette_idx, byte_t px);
 extern struct ppu_color ppu_screen_output[240][256];
 extern struct ppu_color ppu_pattern_table[2][128][128];
+
 /// cartridge.c
 //
 
@@ -178,5 +179,12 @@ void ctrl_clear_input(byte_t player);
 // apu.c
 
 void apu_register(struct bus *bus);
+
+// dma.c
+
+void dma_register(struct bus *bus);
+void dma_mount_mbus(struct bus *bus);
+void dma_do_transfer(size_t system_clock);
+extern bool dma_transfer;
 
 #endif

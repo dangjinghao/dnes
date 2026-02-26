@@ -24,6 +24,7 @@ set(SRC_FILES
     screen.c
     controller.c
     apu.c
+    dma.c
 )
 
 add_executable(dnes ${SRC_FILES})
