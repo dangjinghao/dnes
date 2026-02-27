@@ -132,6 +132,16 @@ void serrorf(char *file_name, size_t line, char *fmt, ...)
 void todo_exit(const char *file_name, size_t line);
 #define TODO() todo_exit(__FILE_NAME__, __LINE__)
 
+#define ctx_mgr(st, ed)                                                        \
+  for (bool _run = ({                                                          \
+         st;                                                                   \
+         true;                                                                 \
+       });                                                                     \
+       _run; _run = ({                                                         \
+               ed;                                                             \
+               false;                                                          \
+             }))
+
 // color bytes
 extern struct ppu_color *COLOR_RED;
 extern struct ppu_color *COLOR_GREEN;

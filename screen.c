@@ -78,6 +78,18 @@ static void frame_profiler_record(double input_seconds, double ui_seconds,
           (frame_profiler.acc_present / divisor) * 1000.0,
           (frame_profiler.acc_emu / divisor) * 1000.0);
 
+  /* Update window title to show FPS (average over the interval). */
+  double avg_fps = 0.0;
+  if (frame_profiler.acc_total > 0.0) {
+    avg_fps = divisor / frame_profiler.acc_total;
+  }
+  static char title_buf[128];
+  snprintf(title_buf, sizeof(title_buf), "djh's NES emulator - FPS: %.2f",
+           avg_fps);
+  if (window != NULL) {
+    SDL_SetWindowTitle(window, title_buf);
+  }
+
   frame_profiler.acc_input = 0.0;
   frame_profiler.acc_ui = 0.0;
   frame_profiler.acc_screen_draw = 0.0;
@@ -354,56 +366,58 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   (void)appstate;
   const uint64_t counter_freq = SDL_GetPerformanceFrequency();
   const uint64_t frame_start_counter = SDL_GetPerformanceCounter();
+  uint64_t stage_start_counter = 0;
+  uint64_t stage_end_counter = frame_start_counter;
+  double input_seconds = 0;
+  double screen_draw_seconds = 0;
+  double emu_seconds = 0;
+  double ui_seconds = 0;
+  double present_seconds = 0;
 
-  uint64_t stage_start_counter = frame_start_counter;
-  detect_controller_input();
-  uint64_t stage_end_counter = SDL_GetPerformanceCounter();
-  double input_seconds = frame_seconds_between(stage_start_counter,
-                                               stage_end_counter, counter_freq);
-  stage_start_counter = stage_end_counter;
+#define collect_stage_perf(_s)                                                 \
+  ctx_mgr(                                                                     \
+      { stage_start_counter = stage_end_counter; },                            \
+      {                                                                        \
+        stage_end_counter = SDL_GetPerformanceCounter();                       \
+        _s = frame_seconds_between(stage_start_counter, stage_end_counter,     \
+                                   counter_freq);                              \
+      })
 
   reset_display();
 
-  draw_screen(0, 0);
-  stage_end_counter = SDL_GetPerformanceCounter();
-  double screen_draw_seconds = frame_seconds_between(
-      stage_start_counter, stage_end_counter, counter_freq);
-  stage_start_counter = stage_end_counter;
+  collect_stage_perf(input_seconds) { detect_controller_input(); }
 
-  if (emu_run) {
-    do {
-      dnes_clock();
-    } while (!ppu_frame_complete);
-    ppu_frame_complete = false;
-  }
-  stage_end_counter = SDL_GetPerformanceCounter();
-  double emu_seconds = frame_seconds_between(stage_start_counter,
-                                             stage_end_counter, counter_freq);
-  stage_start_counter = stage_end_counter;
+  collect_stage_perf(screen_draw_seconds) { draw_screen(0, 0); }
 
-  if (show_debug_info) {
-    draw_cpu(516, 2);
-    if (show_oam) {
-      draw_oam(516, 72, 26);
-    } else {
-      draw_code(516, 72, 26);
+  collect_stage_perf(emu_seconds) {
+    if (emu_run) {
+      do {
+        dnes_clock();
+      } while (!ppu_frame_complete);
+      ppu_frame_complete = false;
     }
-    draw_palettes();
-    ppu_gen_pattern_table(0, selected_palette);
-    ppu_gen_pattern_table(1, selected_palette);
-    draw_pattern_table(0, 516, 348);
-    draw_pattern_table(1, 516 + 130, 348);
   }
-  stage_end_counter = SDL_GetPerformanceCounter();
-  double ui_seconds = frame_seconds_between(stage_start_counter,
-                                            stage_end_counter, counter_freq);
-  stage_start_counter = stage_end_counter;
+  collect_stage_perf(ui_seconds) {
+    if (show_debug_info) {
+      draw_cpu(516, 2);
+      if (show_oam) {
+        draw_oam(516, 72, 26);
+      } else {
+        draw_code(516, 72, 26);
+      }
+      draw_palettes();
+      ppu_gen_pattern_table(0, selected_palette);
+      ppu_gen_pattern_table(1, selected_palette);
+      draw_pattern_table(0, 516, 348);
+      draw_pattern_table(1, 516 + 130, 348);
+    }
+  }
 
-  SDL_RenderPresent(renderer); /* put it all on the screen! */
-  stage_end_counter = SDL_GetPerformanceCounter();
-  double present_seconds = frame_seconds_between(
-      stage_start_counter, stage_end_counter, counter_freq);
-  stage_start_counter = stage_end_counter;
+  collect_stage_perf(present_seconds) {
+    SDL_RenderPresent(renderer); /* put it all on the screen! */
+  }
+
+#undef collect_stage_perf
 
   const uint64_t frame_end_counter = SDL_GetPerformanceCounter();
   const uint64_t frame_counter_delta = frame_end_counter - frame_start_counter;
@@ -435,24 +449,10 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result) {
     SDL_DestroyTexture(screen_texture);
     screen_texture = NULL;
   }
-  if (pattern_textures[0] != NULL) {
-    SDL_DestroyTexture(pattern_textures[0]);
-    pattern_textures[0] = NULL;
-  }
-  if (pattern_textures[1] != NULL) {
-    SDL_DestroyTexture(pattern_textures[1]);
-    pattern_textures[1] = NULL;
-  }
-  if (screen_texture != NULL) {
-    SDL_DestroyTexture(screen_texture);
-    screen_texture = NULL;
-  }
-  if (pattern_textures[0] != NULL) {
-    SDL_DestroyTexture(pattern_textures[0]);
-    pattern_textures[0] = NULL;
-  }
-  if (pattern_textures[1] != NULL) {
-    SDL_DestroyTexture(pattern_textures[1]);
-    pattern_textures[1] = NULL;
+  for (int i = 0; i < 2; i++) {
+    if (pattern_textures[i] != NULL) {
+      SDL_DestroyTexture(pattern_textures[i]);
+      pattern_textures[i] = NULL;
+    }
   }
 }
