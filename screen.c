@@ -68,7 +68,7 @@ static void frame_profiler_record(double input_seconds, double ui_seconds,
   }
 
   const double divisor = (double)frame_profiler.frame_count;
-  SDL_Log("Perf avg(%d): total=%.3fms input=%.3f ui=%.3f "
+  SDL_Log("Perf of every %d frames: total=%.3fms input=%.3f ui=%.3f "
           "screen=%.3f present=%.3f emu=%.3f",
           frame_profiler.frame_count,
           (frame_profiler.acc_total / divisor) * 1000.0,

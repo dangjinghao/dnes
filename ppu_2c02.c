@@ -74,6 +74,9 @@ static byte_t ppu_data_buffer = 0x00;
 // Pixel "dot" position information
 static int16_t scanline = 0;
 static int16_t cycle = 0;
+static bool odd_frame = false;
+
+static bool scanline_trigger = false;
 
 // Background rendering =========================================
 static byte_t bg_next_tile_id = 0x00;
@@ -432,7 +435,6 @@ void ppu_ext_register(struct bus *pbus) {
 
 void ppu_reset() {
   fine_x = 0x00;
-  address_latch = false;
   ppu_data_buffer = 0x00;
   scanline = 0;
   cycle = 0;
@@ -449,6 +451,9 @@ void ppu_reset() {
   control.reg = 0x00;
   vram_addr.reg = 0x0000;
   tram_addr.reg = 0x0000;
+  address_latch = false;
+  scanline_trigger = false;
+  odd_frame = false;
   memset(ppu_screen_output, 0, sizeof(ppu_screen_output));
   memset(ppu_pattern_table, 0, sizeof(ppu_pattern_table));
   memset(palette_table, 0, sizeof(palette_table));
@@ -639,7 +644,8 @@ void ppu_clock() {
     // Background Rendering
     // ======================================================
 
-    if (scanline == 0 && cycle == 0) {
+    if (scanline == 0 && cycle == 0 && odd_frame &&
+        (mask.render_background || mask.render_sprites)) {
       // "Odd Frame" cycle skip
       cycle = 1;
     }
@@ -855,10 +861,10 @@ void ppu_clock() {
     }
 
     // Foreground Rendering
-    // ======================================================== I'm gonna cheat
-    // a bit here, which may reduce compatibility, but greatly simplifies
-    // delivering an intuitive understanding of what exactly is going on. The
-    // PPU loads sprite information successively during the region that
+    // ========================================================
+    // I'm gonna cheat a bit here, which may reduce compatibility, but greatly
+    // simplifies delivering an intuitive understanding of what exactly is going
+    // on. The PPU loads sprite information successively during the region that
     // background tiles are not being drawn. Instead, I'm going to perform
     // all sprite evaluation in one hit. THE NES DOES NOT DO IT LIKE THIS! This
     // makes it easier to see the process of sprite evaluation.
@@ -903,7 +909,8 @@ void ppu_clock() {
         // same height as the sprite, so check if it resides in the sprite
         // vertically depending on the current "sprite height mode" FLAGGED
 
-        if (diff >= 0 && diff < (control.sprite_size ? 16 : 8)) {
+        if (diff >= 0 && diff < (control.sprite_size ? 16 : 8) &&
+            sprite_count < 8) {
           // Sprite is visible, so copy the attribute entry over to our
           // scanline sprite cache. Ive added < 8 here to guard the array
           // being written to.
@@ -917,15 +924,15 @@ void ppu_clock() {
 
             memcpy(&sprite_scanline[sprite_count], &OAM[nOAMEntry],
                    sizeof(struct object_attr_entry));
-            sprite_count++;
           }
+          sprite_count++;
         }
 
         nOAMEntry++;
       } // End of sprite evaluation for next scanline
 
       // Set sprite overflow flag
-      status.sprite_overflow = (sprite_count > 8);
+      status.sprite_overflow = (sprite_count >= 8);
 
       // Now we have an array of the 8 visible sprites for the next scanline. By
       // the nature of this search, they are also ranked in priority, because
@@ -1091,24 +1098,26 @@ void ppu_clock() {
   // to form 0x00. This will fall through the colour tables to yield
   // the current background colour in effect
   if (mask.render_background) {
-    // Handle Pixel Selection by selecting the relevant bit
-    // depending upon fine x scolling. This has the effect of
-    // offsetting ALL background rendering by a set number
-    // of pixels, permitting smooth scrolling
-    uint16_t bit_mux = 0x8000 >> fine_x;
+    if (mask.render_background_left || (cycle >= 9)) {
+      // Handle Pixel Selection by selecting the relevant bit
+      // depending upon fine x scolling. This has the effect of
+      // offsetting ALL background rendering by a set number
+      // of pixels, permitting smooth scrolling
+      uint16_t bit_mux = 0x8000 >> fine_x;
 
-    // Select Plane pixels by extracting from the shifter
-    // at the required location.
-    byte_t p0_pixel = (bg_shifter_pattern_lo & bit_mux) > 0;
-    byte_t p1_pixel = (bg_shifter_pattern_hi & bit_mux) > 0;
+      // Select Plane pixels by extracting from the shifter
+      // at the required location.
+      uint8_t p0_pixel = (bg_shifter_pattern_lo & bit_mux) > 0;
+      uint8_t p1_pixel = (bg_shifter_pattern_hi & bit_mux) > 0;
 
-    // Combine to form pixel index
-    bg_pixel = (byte_t)(p1_pixel << 1) | p0_pixel;
+      // Combine to form pixel index
+      bg_pixel = (byte_t)(p1_pixel << 1) | p0_pixel;
 
-    // Get palette
-    byte_t bg_pal0 = (bg_shifter_attrib_lo & bit_mux) > 0;
-    byte_t bg_pal1 = (bg_shifter_attrib_hi & bit_mux) > 0;
-    bg_palette = (byte_t)(bg_pal1 << 1) | bg_pal0;
+      // Get palette
+      uint8_t bg_pal0 = (bg_shifter_attrib_lo & bit_mux) > 0;
+      uint8_t bg_pal1 = (bg_shifter_attrib_hi & bit_mux) > 0;
+      bg_palette = (byte_t)(bg_pal1 << 1) | bg_pal0;
+    }
   }
 
   // Foreground =============================================================
@@ -1120,37 +1129,38 @@ void ppu_clock() {
     // Iterate through all sprites for this scanline. This is to maintain
     // sprite priority. As soon as we find a non transparent pixel of
     // a sprite we can abort
+    if (mask.render_sprites_left || (cycle >= 9)) {
+      bSpriteZeroBeingRendered = false;
 
-    bSpriteZeroBeingRendered = false;
+      for (byte_t i = 0; i < sprite_count; i++) {
+        // Scanline cycle has "collided" with sprite, shifters taking over
+        if (sprite_scanline[i].x == 0) {
+          // Note Fine X scrolling does not apply to sprites, the game
+          // should maintain their relationship with the background. So
+          // we'll just use the MSB of the shifter
 
-    for (byte_t i = 0; i < sprite_count; i++) {
-      // Scanline cycle has "collided" with sprite, shifters taking over
-      if (sprite_scanline[i].x == 0) {
-        // Note Fine X scrolling does not apply to sprites, the game
-        // should maintain their relationship with the background. So
-        // we'll just use the MSB of the shifter
+          // Determine the pixel value...
+          byte_t fg_pixel_lo = (sprite_shifter_pattern_lo[i] & 0x80) > 0;
+          byte_t fg_pixel_hi = (sprite_shifter_pattern_hi[i] & 0x80) > 0;
+          fg_pixel = (byte_t)((fg_pixel_hi << 1) | fg_pixel_lo);
 
-        // Determine the pixel value...
-        byte_t fg_pixel_lo = (sprite_shifter_pattern_lo[i] & 0x80) > 0;
-        byte_t fg_pixel_hi = (sprite_shifter_pattern_hi[i] & 0x80) > 0;
-        fg_pixel = (byte_t)((fg_pixel_hi << 1) | fg_pixel_lo);
+          // Extract the palette from the bottom two bits. Recall
+          // that foreground palettes are the latter 4 in the
+          // palette memory.
+          fg_palette = (sprite_scanline[i].attr & 0x03) + 0x04;
+          fg_priority = (sprite_scanline[i].attr & 0x20) == 0;
 
-        // Extract the palette from the bottom two bits. Recall
-        // that foreground palettes are the latter 4 in the
-        // palette memory.
-        fg_palette = (sprite_scanline[i].attr & 0x03) + 0x04;
-        fg_priority = (sprite_scanline[i].attr & 0x20) == 0;
+          // If pixel is not transparent, we render it, and dont
+          // bother checking the rest because the earlier sprites
+          // in the list are higher priority
+          if (fg_pixel != 0) {
+            if (i == 0) // Is this sprite zero?
+            {
+              bSpriteZeroBeingRendered = true;
+            }
 
-        // If pixel is not transparent, we render it, and dont
-        // bother checking the rest because the earlier sprites
-        // in the list are higher priority
-        if (fg_pixel != 0) {
-          if (i == 0) // Is this sprite zero?
-          {
-            bSpriteZeroBeingRendered = true;
+            break;
           }
-
-          break;
         }
       }
     }
@@ -1204,7 +1214,7 @@ void ppu_clock() {
         // The left edge of the screen has specific switches to control
         // its appearance. This is used to smooth inconsistencies when
         // scrolling (since sprites x coord must be >= 0)
-        if (~(mask.render_background_left | mask.render_sprites_left)) {
+        if (!(mask.render_background_left | mask.render_sprites_left)) {
           if (cycle >= 9 && cycle < 258) {
             status.sprite_zero_hit = 1;
           }
@@ -1224,12 +1234,18 @@ void ppu_clock() {
 
   // Advance renderer - it never stops, it's relentless
   cycle++;
+  if (mask.render_background || mask.render_sprites)
+    if (cycle == 260 && scanline < 240) {
+      // cart->GetMapper()->scanline();
+    }
+
   if (cycle >= 341) {
     cycle = 0;
     scanline++;
     if (scanline >= 261) {
       scanline = -1;
       ppu_frame_complete = true;
+      odd_frame = !odd_frame;
     }
   }
 }
@@ -1293,7 +1309,7 @@ void ppu_gen_pattern_table(byte_t i, byte_t palette) {
         for (uint16_t col = 0; col < 8; col++) {
           // We can get the index value by simply adding the bits together
           // but we're only interested in the lsb of the row words because...
-          byte_t pixel = (byte_t)(((tile_lsb & 0x01) << 1) | (tile_msb & 0x01));
+          byte_t pixel = (byte_t)((tile_msb & 0x01) << 1 | (tile_lsb & 0x01));
 
           // ...we will shift the row words 1 bit right for each column of
           // the character.
