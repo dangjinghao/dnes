@@ -76,8 +76,6 @@ static int16_t scanline = 0;
 static int16_t cycle = 0;
 static bool odd_frame = false;
 
-static bool scanline_trigger = false;
-
 // Background rendering =========================================
 static byte_t bg_next_tile_id = 0x00;
 static byte_t bg_next_tile_attrib = 0x00;
@@ -452,7 +450,6 @@ void ppu_reset() {
   vram_addr.reg = 0x0000;
   tram_addr.reg = 0x0000;
   address_latch = false;
-  scanline_trigger = false;
   odd_frame = false;
   memset(ppu_screen_output, 0, sizeof(ppu_screen_output));
   memset(ppu_pattern_table, 0, sizeof(ppu_pattern_table));
@@ -909,8 +906,7 @@ void ppu_clock() {
         // same height as the sprite, so check if it resides in the sprite
         // vertically depending on the current "sprite height mode" FLAGGED
 
-        if (diff >= 0 && diff < (control.sprite_size ? 16 : 8) &&
-            sprite_count < 8) {
+        if (diff >= 0 && diff < (control.sprite_size ? 16 : 8)) {
           // Sprite is visible, so copy the attribute entry over to our
           // scanline sprite cache. Ive added < 8 here to guard the array
           // being written to.
@@ -931,8 +927,13 @@ void ppu_clock() {
         nOAMEntry++;
       } // End of sprite evaluation for next scanline
 
-      // Set sprite overflow flag
-      status.sprite_overflow = (sprite_count >= 8);
+      // Set sprite overflow flag (true only when > 8 sprites are visible)
+      status.sprite_overflow = (sprite_count > 8);
+
+      // Keep only first 8 sprites for rendering/shifter preparation
+      if (sprite_count > 8) {
+        sprite_count = 8;
+      }
 
       // Now we have an array of the 8 visible sprites for the next scanline. By
       // the nature of this search, they are also ranked in priority, because
@@ -1236,7 +1237,7 @@ void ppu_clock() {
   cycle++;
   if (mask.render_background || mask.render_sprites)
     if (cycle == 260 && scanline < 240) {
-      // cart->GetMapper()->scanline();
+      // TODO: cart->GetMapper()->scanline();
     }
 
   if (cycle >= 341) {
