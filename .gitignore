@@ -1,3 +1,5 @@
 /build
 /.cache
 *.nes
+/.vs
+/out
