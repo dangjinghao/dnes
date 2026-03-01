@@ -4,7 +4,7 @@
 #include <stdlib.h>
 
 void serrorf(char *file_name, size_t line, char *fmt, ...) {
-  fprintf(stderr, "%s:%lu ", file_name, line);
+  fprintf(stderr, "%s:%zu ", file_name, line);
   va_list args;
   va_start(args, fmt);
   vfprintf(stderr, fmt, args);
@@ -19,6 +19,6 @@ struct ppu_color *COLOR_BLACK = &(struct ppu_color){0x00, 0x00, 0x00, 0xFF};
 struct ppu_color *COLOR_CYAN = &(struct ppu_color){0x00, 0xFF, 0xFF, 0xFF};
 
 void todo_exit(const char *file_name, size_t line) {
-  fprintf(stderr, "%s:%lu TODO\n", file_name, line);
+  fprintf(stderr, "%s:%zu TODO\n", file_name, line);
   exit(1);
 }
