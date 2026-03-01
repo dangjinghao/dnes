@@ -2,21 +2,20 @@ cmake_minimum_required(VERSION 3.16)
 
 project(dnes LANGUAGES C)
 
-option(DNES_VENDORED "Use vendored libraries" OFF)
+option(DNES_VENDORED "Use vendored libraries" ON)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-if(APPLE)
-    list(APPEND CMAKE_PREFIX_PATH "/opt/homebrew")
-endif()
-
 if(DNES_VENDORED)
     # This assumes you have added SDL as a submodule in vendored/SDL
     add_subdirectory(vendored/SDL EXCLUDE_FROM_ALL)
 else()
+    if(APPLE)
+        list(APPEND CMAKE_PREFIX_PATH "/opt/homebrew")
+    endif()
     # 1. Look for a SDL3 package,
     # 2. look for the SDL3-shared component, and
     # 3. fail if the shared component cannot be found.
