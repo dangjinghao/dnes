@@ -10,10 +10,10 @@ set(CMAKE_C_EXTENSIONS ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if(DNES_VENDORED)
-    # This assumes you have added SDL as a submodule in vendored/SDL
     add_subdirectory(vendored/SDL EXCLUDE_FROM_ALL)
 else()
     if(APPLE)
+        # Let's assume that if we're on Apple, we use Homebrew's SDL installation.
         list(APPEND CMAKE_PREFIX_PATH "/opt/homebrew")
     endif()
     # 1. Look for a SDL3 package,
@@ -32,9 +32,8 @@ add_executable(dnes cpu_6502.c
                     utils.c
                     screen.c
                     controller.c
-                    apu.c
+                    apu_2a03.c
                     dma.c)
-
 
 target_compile_options(dnes PRIVATE
     $<$<C_COMPILER_ID:MSVC>: /W4 /WX>
