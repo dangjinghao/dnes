@@ -40,5 +40,4 @@ target_compile_options(dnes PRIVATE
     $<$<NOT:$<C_COMPILER_ID:MSVC>>: -Wall -Wextra -Wconversion -Wsign-conversion -Wno-unused-function>
 )
 
-target_compile_definitions(dnes PRIVATE SDL_MAIN_USE_CALLBACKS)
 target_link_libraries(dnes PRIVATE SDL3::SDL3)
