@@ -198,4 +198,10 @@ void dma_mount_mbus(struct bus *bus);
 void dma_do_transfer(size_t system_clock);
 extern bool dma_transfer;
 
+// audio.c
+void audio_init();
+void audio_output(float *samples, size_t sample_count);
+void audio_destroy();
+void audio_demo();
+
 #endif

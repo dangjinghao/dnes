@@ -30,10 +30,11 @@ add_executable(dnes cpu_6502.c
                     bus.c
                     ram.c
                     utils.c
-                    screen.c
                     controller.c
                     apu_2a03.c
-                    dma.c)
+                    dma.c
+                    screen.c
+                    audio.c)
 
 target_compile_options(dnes PRIVATE
     $<$<C_COMPILER_ID:MSVC>: /W4 /WX>

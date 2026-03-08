@@ -249,7 +249,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
   }
   SDL_SetAppMetadata("djh's NES emulator", "0.1", "cloud.gugugu.dnes");
 
-  if (!SDL_Init(SDL_INIT_VIDEO)) {
+  if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO)) {
     SDL_Log("Couldn't initialize SDL: %s", SDL_GetError());
     return SDL_APP_FAILURE;
   }
@@ -286,7 +286,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
 
   dnes_insert_cartridge(argv[1]);
   dnes_reset();
-  SDL_Log("Reset done");
+  audio_init();
   return SDL_APP_CONTINUE; /* carry on with the program! */
 }
 
@@ -419,7 +419,7 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   }
 
 #undef collect_stage_perf
-
+  audio_demo();
   const uint64_t frame_end_counter = SDL_GetPerformanceCounter();
   const uint64_t frame_counter_delta = frame_end_counter - frame_start_counter;
   const double frame_seconds =
@@ -456,4 +456,6 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result) {
       pattern_textures[i] = NULL;
     }
   }
+
+  audio_destroy();
 }
