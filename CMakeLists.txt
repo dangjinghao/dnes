@@ -22,23 +22,35 @@ else()
     find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3-shared)
 endif()
 
-add_executable(dnes cpu_6502.c
-                    ppu_2c02.c
-                    mapper_000.c
-                    cartridge.c
-                    dnes.c
-                    bus.c
-                    ram.c
-                    utils.c
-                    controller.c
-                    apu_2a03.c
-                    dma.c
-                    screen.c
-                    audio.c)
+add_library(dnes_core STATIC
+                      cpu_6502.c
+                      ppu_2c02.c
+                      mapper_000.c
+                      cartridge.c
+                      dnes.c
+                      bus.c
+                      ram.c
+                      utils.c
+                      controller.c
+                      apu_2a03.c
+                      dma.c)
+
+target_include_directories(dnes_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
+target_compile_options(dnes_core PRIVATE
+    $<$<C_COMPILER_ID:MSVC>: /W4 /WX>
+    $<$<NOT:$<C_COMPILER_ID:MSVC>>: -Wall -Wextra -Wconversion -Wsign-conversion -Wno-unused-function>
+)
+
+
+add_executable(dnes frontend/sdl3/screen.c
+                    frontend/sdl3/audio.c)
+
+target_include_directories(dnes PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_compile_options(dnes PRIVATE
     $<$<C_COMPILER_ID:MSVC>: /W4 /WX>
     $<$<NOT:$<C_COMPILER_ID:MSVC>>: -Wall -Wextra -Wconversion -Wsign-conversion -Wno-unused-function>
 )
 
-target_link_libraries(dnes PRIVATE SDL3::SDL3)
+target_link_libraries(dnes PRIVATE dnes_core SDL3::SDL3)
