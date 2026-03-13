@@ -187,21 +187,17 @@ void ctrl_set_input(byte_t player, enum ctrl_button b, bool pressed);
 void ctrl_reset();
 void ctrl_clear_input(byte_t player);
 
-// apu.c
+/// apu.c
+//
 
 void apu_register(struct bus *bus);
 
-// dma.c
+/// dma.c
+//
 
 void dma_register(struct bus *bus);
 void dma_mount_mbus(struct bus *bus);
 void dma_do_transfer(size_t system_clock);
 extern bool dma_transfer;
-
-// audio.c
-void audio_init();
-void audio_output(float *samples, size_t sample_count);
-void audio_destroy();
-void audio_demo();
 
 #endif
