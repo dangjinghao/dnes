@@ -43,8 +43,15 @@ void audio_play(double s) {
   if (stream == NULL) {
     return;
   }
+
   float sample = (float)s;
-  if (!SDL_PutAudioStreamData(stream, &sample, sizeof(sample))) {
+  if (sample > 1.0f) {
+    sample = 1.0f;
+  } else if (sample < -1.0f) {
+    sample = -1.0f;
+  }
+
+  if (!SDL_PutAudioStreamData(stream, &sample, (int)sizeof(sample))) {
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
                  "Failed to put audio stream data: %s", SDL_GetError());
     return;
