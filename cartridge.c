@@ -59,6 +59,14 @@ static inline byte_t nes_hdr_nes_version(struct nes_hdr *hdr) {
   return ((hdr->flag2 >> 2) & (0b11));
 }
 
+static inline byte_t nes_2_hdr_prg_banks(struct nes_hdr *hdr) {
+  return (byte_t)(((hdr->prg_ram_size & 0x07) << 8) | hdr->prg_rom_chunks);
+}
+
+static inline byte_t nes_2_hdr_chr_banks(struct nes_hdr *hdr) {
+  return (byte_t)(((hdr->prg_ram_size & 0x38) << 8) | hdr->chr_rom_chunks);
+}
+
 static void cart_mbus_write(addr_t addr, byte_t data) {
   prg_memory[mapper->map_mbus_write(addr)] = data;
 }
@@ -80,17 +88,17 @@ static byte_t cart_pbus_read(addr_t addr, bool read_only) {
 void cart_register_mbus(struct bus *mbus) {
   assert(prg_memory);
   assert(chr_memory);
-  bus_register(
-      mbus, 0x4020, 0xFFFF,
-      (&(struct bus_regparam){.read = cart_mbus_read, .write = cart_mbus_write}));
+  bus_register(mbus, 0x4020, 0xFFFF,
+               (&(struct bus_regparam){.read = cart_mbus_read,
+                                       .write = cart_mbus_write}));
 }
 
 void cart_register_pbus(struct bus *pbus) {
   assert(prg_memory);
   assert(chr_memory);
-  bus_register(
-      pbus, 0x0000, 0x1FFF,
-      (&(struct bus_regparam){.read = cart_pbus_read, .write = cart_pbus_write}));
+  bus_register(pbus, 0x0000, 0x1FFF,
+               (&(struct bus_regparam){.read = cart_pbus_read,
+                                       .write = cart_pbus_write}));
 }
 
 void cart_load(const char *rom_path) {
@@ -118,21 +126,45 @@ void cart_load(const char *rom_path) {
   }
   byte_t mapper_id = nes_hdr_mapper_id(&hdr);
   mirroring = nes_hdr_mirroring(&hdr) ? M_VERTICAL : M_HORIZONTAL;
-  byte_t rom_type = nes_hdr_nes_version(&hdr);
 
+  byte_t rom_type = nes_hdr_nes_version(&hdr);
   switch (rom_type) {
   case 0:
   case 1: {
     prg_banks = hdr.prg_rom_chunks;
-    chr_banks = hdr.chr_rom_chunks;
-    assert(chr_banks);
     prg_memory = malloc(prg_banks * 1024 * 16);
-    chr_memory = malloc(chr_banks * 1024 * 8);
     if (fread(prg_memory, sizeof(byte_t), prg_banks * 1024 * 16, rom) !=
         prg_banks * 1024 * 16) {
       errorfln("Failed to read PRG ROM data");
       exit(1);
     }
+
+    chr_banks = hdr.chr_rom_chunks;
+    bool is_chr_ram = false;
+    if (chr_banks == 0) {
+      is_chr_ram = true;
+      chr_banks = 1;
+    }
+    chr_memory = malloc(chr_banks * 1024 * 8);
+    if (!is_chr_ram) {
+      if (fread(chr_memory, sizeof(byte_t), chr_banks * 1024 * 8, rom) !=
+          chr_banks * 1024 * 8) {
+        errorfln("Failed to read CHR ROM data");
+        exit(1);
+      }
+    }
+    break;
+  }
+  case 2: {
+    prg_banks = nes_2_hdr_prg_banks(&hdr);
+    prg_memory = malloc(prg_banks * 1024 * 16);
+    if (fread(prg_memory, sizeof(byte_t), prg_banks * 1024 * 16, rom) !=
+        prg_banks * 1024 * 16) {
+      errorfln("Failed to read PRG ROM data");
+      exit(1);
+    }
+    chr_banks = nes_2_hdr_chr_banks(&hdr);
+    chr_memory = malloc(chr_banks * 1024 * 8);
     if (fread(chr_memory, sizeof(byte_t), chr_banks * 1024 * 8, rom) !=
         chr_banks * 1024 * 8) {
       errorfln("Failed to read CHR ROM data");
@@ -140,10 +172,9 @@ void cart_load(const char *rom_path) {
     }
     break;
   }
-  case 2:
-  case 3:
   default:
-    TODO();
+    errorfln("Unsupported NES version: %hhd", rom_type);
+    exit(1);
   }
 
   switch (mapper_id) {
@@ -151,7 +182,8 @@ void cart_load(const char *rom_path) {
     mapper = mapper_000(prg_banks, chr_banks);
     break;
   default:
-    TODO();
+    errorfln("Unsupported mapper: %hhd", mapper_id);
+    exit(1);
   }
 
   fclose(rom);
@@ -164,4 +196,7 @@ void cart_pop() {
   free(chr_memory);
 }
 
-void cart_reset() { mapper->reset(); }
+void cart_reset() {
+  if (mapper)
+    mapper->reset();
+}
