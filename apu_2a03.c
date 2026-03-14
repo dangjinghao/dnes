@@ -4,42 +4,6 @@
 static uint32_t frame_clock_counter = 0;
 static uint32_t clock_counter = 0;
 static bool use_raw_mode = false;
-static byte_t length_table[] = {10, 254, 20,  2,  40, 4,  80, 6,  160, 8,  60,
-                                10, 14,  12,  26, 14, 12, 16, 24, 18,  48, 20,
-                                96, 22,  192, 24, 72, 26, 16, 28, 32,  30};
-
-static double global_time = 0.0;
-
-// square wave pulse channel 1
-static bool pulse1_enable = false;
-static bool pulse1_halt = false;
-static double pulse1_sample = 0.0;
-static double pulse1_output = 0.0;
-static struct sequencer pulse1_seq;
-static struct oscpulse pulse1_osc;
-static struct envelope pulse1_env;
-static struct length_counter pulse1_lc;
-static struct sweeper pulse1_sweep;
-
-// square wave pulse channel 2
-static bool pulse2_enable = false;
-static bool pulse2_halt = false;
-static double pulse2_sample = 0.0;
-static double pulse2_output = 0.0;
-static struct sequencer pulse2_seq;
-static struct oscpulse pulse2_osc;
-static struct envelope pulse2_env;
-static struct length_counter pulse2_lc;
-static struct sweeper pulse2_sweep;
-
-// noise channel
-static bool noise_enable = false;
-static bool noise_halt = false;
-static double noise_sample = 0.0;
-static double noise_output = 0.0;
-static struct sequencer noise_seq;
-static struct envelope noise_env;
-static struct length_counter noise_lc;
 
 // Sequencer Module
 // ~~~~~~~~~~~~~~~~
@@ -137,7 +101,7 @@ static void envelope_clock(struct envelope *e, bool loop) {
 }
 
 struct oscpulse {
-  double freq, dutycycle, amplitude, harmonics, pi;
+  double frequency, dutycycle, amplitude, harmonics, pi;
 };
 
 static void oscpulse_init(struct oscpulse *osc) {
@@ -155,7 +119,7 @@ static double oscpulse_sample_approxsin(double t) {
 static double oscpulse_sample(struct oscpulse *osc, double t) {
   double a = 0, b = 0, p = osc->dutycycle * 2.0 * M_PI;
   for (double n = 1; n < osc->harmonics; n++) {
-    double c = n * osc->freq * 2.0 * M_PI * t;
+    double c = n * osc->frequency * 2.0 * M_PI * t;
     a += -oscpulse_sample_approxsin(c) / n;
     b += -oscpulse_sample_approxsin(c - p * n) / n;
 
@@ -206,15 +170,237 @@ static bool sweeper_clock(struct sweeper *s, uint16_t *target, bool channel) {
   return changed;
 }
 
+static byte_t length_table[] = {10, 254, 20,  2,  40, 4,  80, 6,  160, 8,  60,
+                                10, 14,  12,  26, 14, 12, 16, 24, 18,  48, 20,
+                                96, 22,  192, 24, 72, 26, 16, 28, 32,  30};
+
+static double global_time = 0.0;
+
+// square wave pulse channel 1
+static bool pulse1_enable = false;
+static bool pulse1_halt = false;
+static double pulse1_sample = 0.0;
+static double pulse1_output = 0.0;
+static struct sequencer pulse1_seq;
+static struct oscpulse pulse1_osc;
+static struct envelope pulse1_env;
+static struct length_counter pulse1_lc;
+static struct sweeper pulse1_sweep;
+
+// square wave pulse channel 2
+static bool pulse2_enable = false;
+static bool pulse2_halt = false;
+static double pulse2_sample = 0.0;
+static double pulse2_output = 0.0;
+static struct sequencer pulse2_seq;
+static struct oscpulse pulse2_osc;
+static struct envelope pulse2_env;
+static struct length_counter pulse2_lc;
+static struct sweeper pulse2_sweep;
+
+// noise channel
+static bool noise_enable = false;
+static bool noise_halt = false;
+static double noise_sample = 0.0;
+static double noise_output = 0.0;
+static struct sequencer noise_seq;
+static struct envelope noise_env;
+static struct length_counter noise_lc;
+
 static byte_t apu_read(addr_t addr, bool read_only) {
-  (void)addr;
+  uint8_t data = 0x00;
   (void)read_only;
-  return 0x00;
+  if (addr == 0x4015) {
+    //	data |= (pulse1_lc.counter > 0) ? 0x01 : 0x00;
+    //	data |= (pulse2_lc.counter > 0) ? 0x02 : 0x00;
+    //	data |= (noise_lc.counter > 0) ? 0x04 : 0x00;
+  }
+
+  return data;
 }
 
 static void apu_write(addr_t addr, byte_t data) {
-  (void)addr;
-  (void)data;
+  switch (addr) {
+  case 0x4000: {
+    switch ((data & 0xC0) >> 6) {
+    case 0x00: {
+      pulse1_seq.new_sequence = 0b01000000;
+      pulse1_osc.dutycycle = 0.125;
+      break;
+    }
+    case 0x01: {
+      pulse1_seq.new_sequence = 0b01100000;
+      pulse1_osc.dutycycle = 0.250;
+      break;
+    }
+    case 0x02: {
+      pulse1_seq.new_sequence = 0b01111000;
+      pulse1_osc.dutycycle = 0.500;
+      break;
+    }
+    case 0x03: {
+      pulse1_seq.new_sequence = 0b10011111;
+      pulse1_osc.dutycycle = 0.750;
+      break;
+    }
+    }
+    pulse1_seq.sequence = pulse1_seq.new_sequence;
+    pulse1_halt = (data & 0x20);
+    pulse1_env.volume = (data & 0x0F);
+    pulse1_env.disable = (data & 0x10);
+    break;
+  }
+  case 0x4001: {
+    pulse1_sweep.enabled = data & 0x80;
+    pulse1_sweep.period = (data & 0x70) >> 4;
+    pulse1_sweep.down = data & 0x08;
+    pulse1_sweep.shift = data & 0x07;
+    pulse1_sweep.reload = true;
+    break;
+  }
+  case 0x4002: {
+    pulse1_seq.reload = (pulse1_seq.reload & 0xFF00) | data;
+    break;
+  }
+  case 0x4003: {
+    pulse1_seq.reload =
+        (uint16_t)(((data & 0x07)) << 8 | (pulse1_seq.reload & 0x00FF));
+    pulse1_seq.timer = pulse1_seq.reload;
+    pulse1_seq.sequence = pulse1_seq.new_sequence;
+    pulse1_lc.counter = length_table[(data & 0xF8) >> 3];
+    pulse1_env.start = true;
+    break;
+  }
+  case 0x4004: {
+    switch ((data & 0xC0) >> 6) {
+    case 0x00: {
+      pulse2_seq.new_sequence = 0b01000000;
+      pulse2_osc.dutycycle = 0.125;
+      break;
+    }
+    case 0x01: {
+      pulse2_seq.new_sequence = 0b01100000;
+      pulse2_osc.dutycycle = 0.250;
+      break;
+    }
+    case 0x02: {
+      pulse2_seq.new_sequence = 0b01111000;
+      pulse2_osc.dutycycle = 0.500;
+      break;
+    }
+    case 0x03: {
+      pulse2_seq.new_sequence = 0b10011111;
+      pulse2_osc.dutycycle = 0.750;
+      break;
+    }
+    }
+    pulse2_seq.sequence = pulse2_seq.new_sequence;
+    pulse2_halt = (data & 0x20);
+    pulse2_env.volume = (data & 0x0F);
+    pulse2_env.disable = (data & 0x10);
+    break;
+  }
+  case 0x4005: {
+    pulse2_sweep.enabled = data & 0x80;
+    pulse2_sweep.period = (data & 0x70) >> 4;
+    pulse2_sweep.down = data & 0x08;
+    pulse2_sweep.shift = data & 0x07;
+    pulse2_sweep.reload = true;
+    break;
+  }
+  case 0x4006: {
+    pulse2_seq.reload = (pulse2_seq.reload & 0xFF00) | data;
+    break;
+  }
+
+  case 0x4007: {
+    pulse2_seq.reload =
+        (uint16_t)(((data & 0x07)) << 8 | (pulse2_seq.reload & 0x00FF));
+    pulse2_seq.timer = pulse2_seq.reload;
+    pulse2_seq.sequence = pulse2_seq.new_sequence;
+    pulse2_lc.counter = length_table[(data & 0xF8) >> 3];
+    pulse2_env.start = true;
+    break;
+  }
+  case 0x4008: {
+    break;
+  }
+
+  case 0x400C: {
+    noise_env.volume = (data & 0x0F);
+    noise_env.disable = (data & 0x10);
+    noise_halt = (data & 0x20);
+    break;
+  }
+  case 0x400E: {
+    switch (data & 0x0F) {
+    case 0x00:
+      noise_seq.reload = 0;
+      break;
+    case 0x01:
+      noise_seq.reload = 4;
+      break;
+    case 0x02:
+      noise_seq.reload = 8;
+      break;
+    case 0x03:
+      noise_seq.reload = 16;
+      break;
+    case 0x04:
+      noise_seq.reload = 32;
+      break;
+    case 0x05:
+      noise_seq.reload = 64;
+      break;
+    case 0x06:
+      noise_seq.reload = 96;
+      break;
+    case 0x07:
+      noise_seq.reload = 128;
+      break;
+    case 0x08:
+      noise_seq.reload = 160;
+      break;
+    case 0x09:
+      noise_seq.reload = 202;
+      break;
+    case 0x0A:
+      noise_seq.reload = 254;
+      break;
+    case 0x0B:
+      noise_seq.reload = 380;
+      break;
+    case 0x0C:
+      noise_seq.reload = 508;
+      break;
+    case 0x0D:
+      noise_seq.reload = 1016;
+      break;
+    case 0x0E:
+      noise_seq.reload = 2034;
+      break;
+    case 0x0F:
+      noise_seq.reload = 4068;
+      break;
+    }
+    break;
+  }
+  case 0x4015: { // APU STATUS
+    pulse1_enable = data & 0x01;
+    pulse2_enable = data & 0x02;
+    noise_enable = data & 0x04;
+    break;
+  }
+  case 0x400F: {
+    pulse1_env.start = true;
+    pulse2_env.start = true;
+    noise_env.start = true;
+    noise_lc.counter = length_table[(data & 0xF8) >> 3];
+    break;
+  }
+  default:
+    errorfln("Wrong APU address: %#06X", addr);
+  }
 }
 
 static void apu_init() { noise_seq.sequence = 0xDBDB; }
@@ -226,11 +412,153 @@ void apu_register(struct bus *bus) {
   bus_register(bus, 0x4015, 0x4015, &p);
 }
 
-void apu_clock() {}
+static void apu_clock_update_channel(uint32_t *s) {
+  // Shift right by 1 bit, wrapping around
+  *s = ((*s & 0x0001) << 7) | ((*s & 0x00FE) >> 1);
+}
+
+static void apu_clock_update_noise_channel(uint32_t *s) {
+  *s = (((*s & 0x0001) ^ ((*s & 0x0002) >> 1)) << 14) | ((*s & 0x7FFF) >> 1);
+}
+
+void apu_clock() {
+  // Depending on the frame count, we set a flag to tell
+  // us where we are in the sequence. Essentially, changes
+  // to notes only occur at these intervals, meaning, in a
+  // way, this is responsible for ensuring musical time is
+  // maintained.
+  bool bQuarterFrameClock = false;
+  bool bHalfFrameClock = false;
+
+  global_time += (0.3333333333 / 1789773);
+
+  if (clock_counter % 6 == 0) {
+    frame_clock_counter++;
+
+    // 4-Step Sequence Mode
+    if (frame_clock_counter == 3729) {
+      bQuarterFrameClock = true;
+    }
+
+    if (frame_clock_counter == 7457) {
+      bQuarterFrameClock = true;
+      bHalfFrameClock = true;
+    }
+
+    if (frame_clock_counter == 11186) {
+      bQuarterFrameClock = true;
+    }
+
+    if (frame_clock_counter == 14916) {
+      bQuarterFrameClock = true;
+      bHalfFrameClock = true;
+      frame_clock_counter = 0;
+    }
+
+    // Update functional units
+
+    // Quater frame "beats" adjust the volume envelope
+    if (bQuarterFrameClock) {
+      envelope_clock(&pulse1_env, pulse1_halt);
+      envelope_clock(&pulse2_env, pulse2_halt);
+      envelope_clock(&noise_env, noise_halt);
+    }
+
+    // Half frame "beats" adjust the note length and
+    // frequency sweepers
+    if (bHalfFrameClock) {
+      length_counter_clock(&pulse1_lc, pulse1_enable, pulse1_halt);
+      length_counter_clock(&pulse2_lc, pulse2_enable, pulse2_halt);
+      length_counter_clock(&noise_lc, noise_enable, noise_halt);
+      sweeper_clock(&pulse1_sweep, &pulse1_seq.reload, 0);
+      sweeper_clock(&pulse2_sweep, &pulse2_seq.reload, 1);
+    }
+
+    //	if (bUseRawMode)
+    {
+      // Update Pulse1 Channel ================================
+      sequencer_clock(&pulse1_seq, pulse1_enable, apu_clock_update_channel);
+
+      //	pulse1_sample = (double)pulse1_seq.output;
+    }
+    // else
+    {
+      pulse1_osc.frequency =
+          1789773.0 / (16.0 * (double)(pulse1_seq.reload + 1));
+      pulse1_osc.amplitude = (double)(pulse1_env.output - 1) / 16.0;
+      pulse1_sample = oscpulse_sample(&pulse1_osc, global_time);
+      if (pulse1_lc.counter > 0 && pulse1_seq.timer >= 8 &&
+          !pulse1_sweep.mute && pulse1_env.output > 2)
+        pulse1_output += (pulse1_sample - pulse1_output) * 0.5;
+      else
+        pulse1_output = 0;
+    }
+
+    // if (bUseRawMode)
+    {
+      // Update Pulse1 Channel ================================
+      sequencer_clock(&pulse2_seq, pulse2_enable, apu_clock_update_channel);
+
+      //	pulse2_sample = (double)pulse2_seq.output;
+    }
+    //	else
+    {
+      pulse2_osc.frequency =
+          1789773.0 / (16.0 * (double)(pulse2_seq.reload + 1));
+      pulse2_osc.amplitude = (double)(pulse2_env.output - 1) / 16.0;
+      pulse2_sample = oscpulse_sample(&pulse2_osc, global_time);
+
+      if (pulse2_lc.counter > 0 && pulse2_seq.timer >= 8 &&
+          !pulse2_sweep.mute && pulse2_env.output > 2)
+        pulse2_output += (pulse2_sample - pulse2_output) * 0.5;
+      else
+        pulse2_output = 0;
+    }
+
+    sequencer_clock(&noise_seq, noise_enable, apu_clock_update_noise_channel);
+
+    if (noise_lc.counter > 0 && noise_seq.timer >= 8) {
+      noise_output =
+          (double)noise_seq.output * ((double)(noise_env.output - 1) / 16.0);
+    }
+
+    if (!pulse1_enable)
+      pulse1_output = 0;
+    if (!pulse2_enable)
+      pulse2_output = 0;
+    if (!noise_enable)
+      noise_output = 0;
+  }
+
+  // Frequency sweepers change at high frequency
+  sweeper_track(&pulse1_sweep, &pulse1_seq.reload);
+  sweeper_track(&pulse2_sweep, &pulse2_seq.reload);
+
+  apu_pulse1_visual =
+      (pulse1_enable && pulse1_env.output > 1 && !pulse1_sweep.mute)
+          ? pulse1_seq.reload
+          : 2047;
+  apu_pulse2_visual =
+      (pulse2_enable && pulse2_env.output > 1 && !pulse2_sweep.mute)
+          ? pulse2_seq.reload
+          : 2047;
+  apu_noise_visual =
+      (noise_enable && noise_env.output > 1) ? noise_seq.reload : 2047;
+
+  clock_counter++;
+}
 
 void apu_reset() {}
 
-double apu_get_output_sample() { return 0; }
+double apu_get_output_sample() {
+  if (use_raw_mode) {
+    return (pulse1_sample - 0.5) * 0.5 + (pulse2_sample - 0.5) * 0.5;
+  } else {
+    return ((1.0 * pulse1_output) - 0.8) * 0.1 +
+           ((1.0 * pulse2_output) - 0.8) * 0.1 +
+           ((2.0 * (noise_output - 0.5))) * 0.1;
+  }
+}
 
 uint16_t apu_pulse1_visual = 0, apu_pulse2_visual = 0, apu_noise_visual = 0,
          apu_triangle_visual = 0;
