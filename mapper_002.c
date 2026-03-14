@@ -1,47 +1,55 @@
 #include "dnes.h"
 
-static byte_t nPRGBankSelectLo = 0x00;
-static byte_t nPRGBankSelectHi = 0x00;
+static byte_t prg_bank_select_lo = 0x00;
+static byte_t prg_bank_select_hi = 0x00;
 
-static size_t map_mbus_read(addr_t addr, byte_t *data) {
+static bool map_mbus_read(addr_t addr, size_t *mapped_addr, byte_t *data) {
   (void)data;
+  if (!mapped_addr) {
+    return false;
+  }
   if (addr >= 0x8000 && addr <= 0xBFFF) {
-    return nPRGBankSelectLo * 0x4000 + (addr & 0x3FFF);
+    *mapped_addr = prg_bank_select_lo * 0x4000 + (addr & 0x3FFF);
+    return true;
   }
 
   if (addr >= 0xC000 && addr <= 0xFFFF) {
-    return nPRGBankSelectHi * 0x4000 + (addr & 0x3FFF);
+    *mapped_addr = prg_bank_select_hi * 0x4000 + (addr & 0x3FFF);
+    return true;
   }
-  return SIZE_MAX; // no mapping
+  return false;
 }
-static size_t map_mbus_write(addr_t addr, byte_t data) {
+static bool map_mbus_write(addr_t addr, size_t *mapped_addr, byte_t data) {
+  (void)mapped_addr;
   if (addr >= 0x8000 && addr <= 0xFFFF) {
-    nPRGBankSelectLo = data & 0x0F;
+    prg_bank_select_lo = data & 0x0F;
   }
-  return SIZE_MAX; // no mapping
+  // Mapper has handled write, but do not update ROMs
+  return false;
 }
 
-static size_t map_pbus_read(addr_t addr) {
+static bool map_pbus_read(addr_t addr, size_t *mapped_addr) {
   if (addr < 0x2000) {
-    return addr;
-  } else {
-    return SIZE_MAX;
+    *mapped_addr = addr;
+    return true;
   }
+  return false;
 }
-static size_t map_pbus_write(addr_t addr) {
+static bool map_pbus_write(addr_t addr, size_t *mapped_addr) {
   if (addr < 0x2000) {
     if (mapper_chr_banks == 0) // Treating as RAM
     {
-      return addr;
+      *mapped_addr = addr;
+      return true;
     }
   }
-  return SIZE_MAX;
+  return false;
 }
 
 static void reset() {
 
-  nPRGBankSelectLo = 0;
-  nPRGBankSelectHi = mapper_prg_banks - 1;
+  prg_bank_select_lo = 0;
+  prg_bank_select_hi = mapper_prg_banks - 1;
 }
 
 static struct mapper mapper = {

@@ -1,6 +1,6 @@
 #include "dnes.h"
 
-static size_t map_mbus_read(addr_t addr, byte_t *data) {
+static bool map_mbus_read(addr_t addr, size_t *mapped_addr, byte_t *data) {
   // if PRGROM is 16KB
   //     CPU Address Bus          PRG ROM
   //     0x8000 -> 0xBFFF: Map    0x0000 -> 0x3FFF
@@ -9,19 +9,37 @@ static size_t map_mbus_read(addr_t addr, byte_t *data) {
   //     CPU Address Bus          PRG ROM
   //     0x8000 -> 0xFFFF: Map    0x0000 -> 0x7FFF
   (void)data;
-  return addr & (mapper_prg_banks > 1 ? 0x7FFF : 0x3FFF);
+  if (addr < 0x8000 || !mapped_addr) {
+    return false;
+  }
+  *mapped_addr = addr & (mapper_prg_banks > 1 ? 0x7FFF : 0x3FFF);
+  return true;
 }
-static size_t map_mbus_write(addr_t addr, byte_t data) {
+static bool map_mbus_write(addr_t addr, size_t *mapped_addr, byte_t data) {
   (void)data;
-  return addr & (mapper_prg_banks > 1 ? 0x7FFF : 0x3FFF);
+  if (addr < 0x8000 || !mapped_addr) {
+    return false;
+  }
+  *mapped_addr = addr & (mapper_prg_banks > 1 ? 0x7FFF : 0x3FFF);
+  return true;
 }
-static size_t map_pbus_read(addr_t addr) {
+static bool map_pbus_read(addr_t addr, size_t *mapped_addr) {
   // There is no mapping required for PPU
   // PPU Address Bus          CHR ROM
   // 0x0000 -> 0x1FFF: Map    0x0000 -> 0x1FFF
-  return addr;
+  if (addr >= 0x2000 || !mapped_addr) {
+    return false;
+  }
+  *mapped_addr = addr;
+  return true;
 }
-static size_t map_pbus_write(addr_t addr) { return addr; }
+static bool map_pbus_write(addr_t addr, size_t *mapped_addr) {
+  if (addr >= 0x2000 || !mapped_addr) {
+    return false;
+  }
+  *mapped_addr = addr;
+  return true;
+}
 
 static void reset() {}
 

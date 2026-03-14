@@ -68,10 +68,12 @@ static inline byte_t nes_2_hdr_chr_banks(struct nes_hdr *hdr) {
 }
 
 static void cart_mbus_write(addr_t addr, byte_t data) {
-  size_t mapped_addr = mapper->map_mbus_write(addr, data);
-  // if the mapped_addr is SIZE_MAX, it means the mapper doesn't handle this
-  // address, and we
+  size_t mapped_addr = 0;
+  if (!mapper->map_mbus_write(addr, &mapped_addr, data)) {
+    return;
+  }
   if (mapped_addr == SIZE_MAX) {
+    // mapper set the data directly, no need to write to memory
     return;
   }
   prg_memory[mapped_addr] = data;
@@ -80,24 +82,32 @@ static void cart_mbus_write(addr_t addr, byte_t data) {
 static byte_t cart_mbus_read(addr_t addr, bool read_only) {
   (void)read_only;
   byte_t data = 0;
-  size_t mapped_addr = mapper->map_mbus_read(addr, &data);
-  // if the mapped_addr is SIZE_MAX, it means the mapper doesn't handle this
-  // address, or the mapper wants to return the data directly, so we return the
-  // data if mapped_addr is SIZE_MAX
-  // TODO: refactor the mapper interface to make it more clear
+  size_t mapped_addr = 0;
+  if (!mapper->map_mbus_read(addr, &mapped_addr, &data)) {
+    return 0;
+  }
   if (mapped_addr == SIZE_MAX) {
-    return data;
+    // mapper set the data directly, no need to read from memory
+    return 0;
   }
   return prg_memory[mapped_addr];
 }
 
 static void cart_pbus_write(addr_t addr, byte_t data) {
-  chr_memory[mapper->map_pbus_write(addr)] = data;
+  size_t mapped_addr = 0;
+  if (!mapper->map_pbus_write(addr, &mapped_addr)) {
+    return;
+  }
+  chr_memory[mapped_addr] = data;
 }
 
 static byte_t cart_pbus_read(addr_t addr, bool read_only) {
   (void)read_only;
-  return chr_memory[mapper->map_pbus_read(addr)];
+  size_t mapped_addr = 0;
+  if (!mapper->map_pbus_read(addr, &mapped_addr)) {
+    return 0;
+  }
+  return chr_memory[mapped_addr];
 }
 
 void cart_register_mbus(struct bus *mbus) {

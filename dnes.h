@@ -153,10 +153,10 @@ extern struct ppu_color *COLOR_CYAN;
 // mapper_*.c
 
 struct mapper {
-  size_t (*map_mbus_read)(addr_t addr,byte_t* data);
-  size_t (*map_mbus_write)(addr_t addr,byte_t data);
-  size_t (*map_pbus_read)(addr_t addr);
-  size_t (*map_pbus_write)(addr_t addr);
+  bool (*map_mbus_read)(addr_t addr, size_t *mapped_addr, byte_t *data);
+  bool (*map_mbus_write)(addr_t addr, size_t *mapped_addr, byte_t data);
+  bool (*map_pbus_read)(addr_t addr, size_t *mapped_addr);
+  bool (*map_pbus_write)(addr_t addr, size_t *mapped_addr);
   void (*reset)();
 };
 
