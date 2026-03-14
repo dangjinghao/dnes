@@ -43,16 +43,19 @@ static bool map_pbus_write(addr_t addr, size_t *mapped_addr) {
 
 static void reset() {}
 
-static struct mapper mapper = {
-    .map_mbus_read = map_mbus_read,
-    .map_mbus_write = map_mbus_write,
-    .map_pbus_read = map_pbus_read,
-    .map_pbus_write = map_pbus_write,
-    .reset = reset,
-};
+static enum MIRROR mirror() { return M_HARDWARE; }
+
+static struct mapper mapper = {.map_mbus_read = map_mbus_read,
+                               .map_mbus_write = map_mbus_write,
+                               .map_pbus_read = map_pbus_read,
+                               .map_pbus_write = map_pbus_write,
+                               .reset = reset,
+                               .mirror = mirror};
 
 struct mapper *mapper_000(byte_t prg_banks, byte_t chr_banks) {
   mapper_prg_banks = prg_banks;
   mapper_chr_banks = chr_banks;
+  // necessary
+  reset();
   return &mapper;
 }

@@ -23,9 +23,7 @@ static byte_t *chr_memory;
 static struct mapper *mapper;
 byte_t mapper_prg_banks, mapper_chr_banks;
 
-static enum mirroring_mode mirroring;
-
-enum mirroring_mode cart_get_mirror_mode() { return mirroring; }
+static enum MIRROR hw_mirror;
 
 static inline bool nes_hdr_mirroring(struct nes_hdr *hdr) {
   return hdr->flag1 & (1);
@@ -150,7 +148,7 @@ void cart_load(const char *rom_path) {
     }
   }
   byte_t mapper_id = nes_hdr_mapper_id(&hdr);
-  mirroring = nes_hdr_mirroring(&hdr) ? M_VERTICAL : M_HORIZONTAL;
+  hw_mirror = nes_hdr_mirroring(&hdr) ? M_VERTICAL : M_HORIZONTAL;
 
   byte_t rom_type = nes_hdr_nes_version(&hdr);
   switch (rom_type) {
@@ -224,4 +222,19 @@ void cart_pop() {
 void cart_reset() {
   if (mapper)
     mapper->reset();
+}
+
+struct mapper *cart_get_mapper() { return mapper; }
+
+enum MIRROR cart_get_mirror_mode() {
+  enum MIRROR m = mapper->mirror();
+  if (m == M_HARDWARE) {
+    // Mirror configuration was defined
+    // in hardware via soldering
+    return hw_mirror;
+  } else {
+    // Mirror configuration can be
+    // dynamically set via mapper
+    return m;
+  }
 }

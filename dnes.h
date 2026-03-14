@@ -101,7 +101,8 @@ extern struct ppu_color ppu_pattern_table[2][128][128];
 /// cartridge.c
 //
 
-enum mirroring_mode {
+enum MIRROR {
+  M_HARDWARE,
   M_HORIZONTAL,
   M_VERTICAL,
   M_ONESCREEN_LO,
@@ -113,9 +114,11 @@ void cart_register_pbus(struct bus *pbus);
 void cart_load(const char *rom_path);
 void cart_pop();
 void cart_reset();
+struct mapper *cart_get_mapper();
+
 extern byte_t mapper_prg_banks, mapper_chr_banks;
 
-enum mirroring_mode cart_get_mirror_mode();
+enum MIRROR cart_get_mirror_mode();
 
 /// utils.c
 //
@@ -158,6 +161,7 @@ struct mapper {
   bool (*map_pbus_read)(addr_t addr, size_t *mapped_addr);
   bool (*map_pbus_write)(addr_t addr, size_t *mapped_addr);
   void (*reset)();
+  enum MIRROR (*mirror)();
 };
 
 struct mapper *mapper_000(byte_t prg_banks, byte_t chr_banks);
