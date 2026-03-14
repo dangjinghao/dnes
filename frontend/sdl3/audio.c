@@ -45,7 +45,7 @@ void audio_demo() {
   static float phase = 0.0f;
 
   while (SDL_GetAudioStreamQueued(stream) <
-         (target_queue_samples * (int)sizeof(float))) {
+         (int)(target_queue_samples * sizeof(float))) {
     static float samples[512];
 
     for (size_t i = 0; i < SDL_arraysize(samples); i++) {

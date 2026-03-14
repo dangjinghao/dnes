@@ -187,10 +187,15 @@ void ctrl_set_input(byte_t player, enum ctrl_button b, bool pressed);
 void ctrl_reset();
 void ctrl_clear_input(byte_t player);
 
-/// apu.c
+/// apu_2a03.c
 //
 
 void apu_register(struct bus *bus);
+void apu_clock();
+void apu_reset();
+double apu_get_output_sample();
+typedef void (*apu_sequencer_clock_manipulator_t)(uint32_t *s);
+extern uint16_t apu_pulse1_visual, apu_pulse2_visual, apu_noise_visual, apu_triangle_visual;
 
 /// dma.c
 //
