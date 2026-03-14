@@ -416,7 +416,21 @@ static void apu_write(addr_t addr, byte_t data) {
   }
 }
 
-static void apu_init() { noise_seq.sequence = 0xDBDB; }
+static void apu_init() {
+  sequencer_init(&pulse1_seq);
+  sequencer_init(&pulse2_seq);
+  sequencer_init(&noise_seq);
+  envelope_init(&pulse1_env);
+  envelope_init(&pulse2_env);
+  envelope_init(&noise_env);
+  length_counter_init(&pulse1_lc);
+  length_counter_init(&pulse2_lc);
+  length_counter_init(&noise_lc);
+  oscpulse_init(&pulse1_osc);
+  oscpulse_init(&pulse2_osc);
+
+  noise_seq.sequence = 0xDBDB;
+}
 
 void apu_register(struct bus *bus) {
   apu_init();
