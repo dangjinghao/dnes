@@ -153,14 +153,15 @@ extern struct ppu_color *COLOR_CYAN;
 // mapper_*.c
 
 struct mapper {
-  size_t (*map_mbus_read)(addr_t addr);
-  size_t (*map_mbus_write)(addr_t addr);
+  size_t (*map_mbus_read)(addr_t addr,byte_t* data);
+  size_t (*map_mbus_write)(addr_t addr,byte_t data);
   size_t (*map_pbus_read)(addr_t addr);
   size_t (*map_pbus_write)(addr_t addr);
   void (*reset)();
 };
 
 struct mapper *mapper_000(byte_t prg_banks, byte_t chr_banks);
+struct mapper *mapper_002(byte_t prg_banks, byte_t chr_banks);
 
 /// dnes.c
 //

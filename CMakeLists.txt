@@ -26,6 +26,7 @@ add_library(dnes_core STATIC
                       cpu_6502.c
                       ppu_2c02.c
                       mapper_000.c
+                      mapper_002.c
                       cartridge.c
                       dnes.c
                       bus.c

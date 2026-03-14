@@ -1,6 +1,6 @@
 #include "dnes.h"
 
-static size_t map_mbus_read(addr_t addr) {
+static size_t map_mbus_read(addr_t addr, byte_t *data) {
   // if PRGROM is 16KB
   //     CPU Address Bus          PRG ROM
   //     0x8000 -> 0xBFFF: Map    0x0000 -> 0x3FFF
@@ -8,9 +8,11 @@ static size_t map_mbus_read(addr_t addr) {
   // if PRGROM is 32KB
   //     CPU Address Bus          PRG ROM
   //     0x8000 -> 0xFFFF: Map    0x0000 -> 0x7FFF
+  (void)data;
   return addr & (mapper_prg_banks > 1 ? 0x7FFF : 0x3FFF);
 }
-static size_t map_mbus_write(addr_t addr) {
+static size_t map_mbus_write(addr_t addr, byte_t data) {
+  (void)data;
   return addr & (mapper_prg_banks > 1 ? 0x7FFF : 0x3FFF);
 }
 static size_t map_pbus_read(addr_t addr) {
