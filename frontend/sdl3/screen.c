@@ -27,7 +27,7 @@ static bool emu_run = true;
 static byte_t selected_palette = 0;
 static byte_t debug_info_switch = 2;
 const byte_t area_debug_info_switch_count = 3;
-static bool show_debug_info = true;
+static bool show_debug_info = false;
 const static size_t audio_list_max_samples = 120;
 static struct frame_profiler {
   double acc_input;

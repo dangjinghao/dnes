@@ -110,7 +110,7 @@ static void oscpulse_init(struct oscpulse *osc) {
   osc->harmonics = 20;
 }
 
-static double oscpulse_sample_approxsin(double t) {
+static inline double oscpulse_sample_approxsin(double t) {
   double j = t * 0.15915494309189535; // 1/(2*pi)
   j = j - (int)j;
   return 20.785 * j * (j - 0.5) * (j - 1.0);
