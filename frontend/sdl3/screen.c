@@ -1,4 +1,6 @@
+#include "SDL3/SDL_log.h"
 #include "dnes.h"
+#include <stdint.h>
 #define SDL_MAIN_USE_CALLBACKS
 #include "sdl3_frontend.h"
 #include <SDL3/SDL.h>
@@ -22,8 +24,9 @@ static SDL_Texture *pattern_textures[2] = {NULL, NULL};
 
 static bool emu_run = true;
 static byte_t selected_palette = 0;
-static bool show_oam = false;
-static bool show_debug_info = false;
+static byte_t debug_info_switch = 2;
+const byte_t area_debug_info_switch_count = 3;
+static bool show_debug_info = true;
 
 static struct frame_profiler {
   double acc_input;
@@ -228,6 +231,33 @@ static void draw_oam(int x, int y, int lines) {
   }
 }
 
+struct audio_list {
+  int count;
+  uint16_t samples[30];
+};
+
+static void audio_list_add(struct audio_list *list, uint16_t sample) {
+  list->count = (list->count + 1) % (int)SDL_arraysize(list->samples);
+  list->samples[list->count] = sample;
+}
+
+static struct audio_list audio[3];
+
+static void draw_audio_chan(int chan, int x, int y) {
+  fill_rect_ppu_color(x, y, 120, 120, COLOR_BLUE);
+  for (int i = 0, j = 0; i < audio[chan].count; i++, j++) {
+    uint16_t s = audio[chan].samples[i];
+    fill_rect_ppu_color(x + (i * 4), y + (s >> (chan == 2 ? 5 : 4)), 3, 2,
+                        COLOR_WHITE);
+  }
+}
+
+static void draw_audio(int x, int y) {
+  draw_audio_chan(0, x, y);
+  draw_audio_chan(1, x + 130, y);
+  draw_audio_chan(2, x, y + 130);
+}
+
 static void draw_palettes() {
   const int nSwatchSize = 6;
   for (byte_t p = 0; p < 8; p++)   // For each palette
@@ -337,7 +367,8 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
       break;
     }
     case SDL_SCANCODE_O: {
-      show_oam = !show_oam;
+      debug_info_switch =
+          (debug_info_switch + 1) % (area_debug_info_switch_count);
       break;
     }
     case SDL_SCANCODE_TAB: {
@@ -395,6 +426,9 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     if (emu_run) {
       do {
         dnes_clock();
+        if (dnes_audio_sample_ready) {
+          audio_play(dnes_audio_sample);
+        }
       } while (!ppu_frame_complete);
       ppu_frame_complete = false;
     }
@@ -402,10 +436,16 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   collect_stage_perf(ui_seconds) {
     if (show_debug_info) {
       draw_cpu(516, 2);
-      if (show_oam) {
-        draw_oam(516, 72, 26);
-      } else {
+      switch (debug_info_switch) {
+      case 0:
         draw_code(516, 72, 26);
+        break;
+      case 1:
+        draw_oam(516, 72, 26);
+        break;
+      case 2:
+        draw_audio(516, 72);
+        break;
       }
       draw_palettes();
       ppu_gen_pattern_table(0, selected_palette);
@@ -420,7 +460,6 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   }
 
 #undef collect_stage_perf
-  audio_demo();
   const uint64_t frame_end_counter = SDL_GetPerformanceCounter();
   const uint64_t frame_counter_delta = frame_end_counter - frame_start_counter;
   const double frame_seconds =

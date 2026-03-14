@@ -325,6 +325,12 @@ static void apu_write(addr_t addr, byte_t data) {
   case 0x4008: {
     break;
   }
+  case 0x4009:
+  case 0x400A:
+  case 0x400B: {
+    // Triangle channel registers are not implemented yet.
+    break;
+  }
 
   case 0x400C: {
     noise_env.volume = (data & 0x0F);
@@ -398,8 +404,15 @@ static void apu_write(addr_t addr, byte_t data) {
     noise_lc.counter = length_table[(data & 0xF8) >> 3];
     break;
   }
+  case 0x4010:
+  case 0x4011:
+  case 0x4012:
+  case 0x4013: {
+    // DMC registers are not implemented yet.
+    break;
+  }
   default:
-    errorfln("Wrong APU address: %#06X", addr);
+    break;
   }
 }
 

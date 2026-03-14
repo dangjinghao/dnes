@@ -1,6 +1,12 @@
 #include "dnes.h"
 #include <stdio.h>
 
+static size_t system_clock = 0;
+static double audio_time = 0.0;
+static double audio_global_time = 0.0;
+static double audio_time_per_NES_clock = 0.0;
+static double audio_time_per_system_sample = 0.0;
+
 static void mbus_ready() {
   static struct bus mbus;
   printf("Preparing main bus...\n");
@@ -12,7 +18,6 @@ static void mbus_ready() {
   apu_register(&mbus);
   dma_register(&mbus);
   dma_mount_mbus(&mbus);
-  // stuff...
   bus_ready(&mbus);
   cpu_mount_mbus(&mbus);
 }
@@ -27,10 +32,14 @@ static void pbus_ready() {
   ppu_mount_pbus(&pbus);
 }
 
-static size_t system_clock = 0;
-
 void dnes_clock() {
+  // The fastest clock frequency the digital system cares
+  // about is equivalent to the PPU clock. So the PPU is clocked
+  // each time this function is called...
   ppu_clock();
+
+  apu_clock();
+
   if (system_clock % 3 == 0) {
     // Is the system performing a DMA transfer form CPU memory to
     // OAM memory on PPU?...
@@ -44,10 +53,21 @@ void dnes_clock() {
     }
   }
 
+  // Synchronising with Audio
+  dnes_audio_sample_ready = false;
+  audio_time += audio_time_per_NES_clock;
+  if (audio_time >= audio_time_per_system_sample) {
+    audio_time -= audio_time_per_system_sample;
+    dnes_audio_sample = apu_get_output_sample();
+    dnes_audio_sample_ready = true;
+  }
+
   if (ppu_nmi) {
     ppu_nmi = false;
     cpu_nmi();
   }
+
+  // TODO: Check if cartridge is requesting IRQ
   system_clock += 1;
 }
 
@@ -57,6 +77,10 @@ void dnes_reset() {
   cart_reset();
   ctrl_reset();
   system_clock = 0;
+  audio_time = 0.0;
+  audio_global_time = 0.0;
+  audio_time_per_NES_clock = 0.0;
+  audio_time_per_system_sample = 0.0;
 }
 
 void dnes_insert_cartridge(char *rom_path) {
@@ -64,3 +88,11 @@ void dnes_insert_cartridge(char *rom_path) {
   mbus_ready();
   pbus_ready();
 }
+
+void dnes_set_sample_frequency(uint32_t sample_rate) {
+  audio_time_per_system_sample = 1.0 / (double)sample_rate;
+  audio_time_per_NES_clock = 1.0 / 5369318.0; // PPU Clock Frequency
+}
+
+double dnes_audio_sample = 0.0;
+bool dnes_audio_sample_ready = false;

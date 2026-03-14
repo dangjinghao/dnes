@@ -168,6 +168,9 @@ struct mapper *mapper_000(byte_t prg_banks, byte_t chr_banks);
 void dnes_reset();
 void dnes_clock();
 void dnes_insert_cartridge(char *rom_path);
+void dnes_set_sample_frequency(uint32_t sample_rate);
+extern double dnes_audio_sample;
+extern bool dnes_audio_sample_ready;
 
 /// controller.c
 //
@@ -195,7 +198,8 @@ void apu_clock();
 void apu_reset();
 double apu_get_output_sample();
 typedef void (*apu_sequencer_clock_manipulator_t)(uint32_t *s);
-extern uint16_t apu_pulse1_visual, apu_pulse2_visual, apu_noise_visual, apu_triangle_visual;
+extern uint16_t apu_pulse1_visual, apu_pulse2_visual, apu_noise_visual,
+    apu_triangle_visual;
 
 /// dma.c
 //
