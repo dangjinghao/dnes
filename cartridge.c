@@ -68,12 +68,27 @@ static inline byte_t nes_2_hdr_chr_banks(struct nes_hdr *hdr) {
 }
 
 static void cart_mbus_write(addr_t addr, byte_t data) {
-  prg_memory[mapper->map_mbus_write(addr)] = data;
+  size_t mapped_addr = mapper->map_mbus_write(addr, data);
+  // if the mapped_addr is SIZE_MAX, it means the mapper doesn't handle this
+  // address, and we
+  if (mapped_addr == SIZE_MAX) {
+    return;
+  }
+  prg_memory[mapped_addr] = data;
 }
 
 static byte_t cart_mbus_read(addr_t addr, bool read_only) {
   (void)read_only;
-  return prg_memory[mapper->map_mbus_read(addr)];
+  byte_t data = 0;
+  size_t mapped_addr = mapper->map_mbus_read(addr, &data);
+  // if the mapped_addr is SIZE_MAX, it means the mapper doesn't handle this
+  // address, or the mapper wants to return the data directly, so we return the
+  // data if mapped_addr is SIZE_MAX
+  // TODO: refactor the mapper interface to make it more clear
+  if (mapped_addr == SIZE_MAX) {
+    return data;
+  }
+  return prg_memory[mapped_addr];
 }
 
 static void cart_pbus_write(addr_t addr, byte_t data) {
@@ -140,13 +155,10 @@ void cart_load(const char *rom_path) {
     }
 
     chr_banks = hdr.chr_rom_chunks;
-    bool is_chr_ram = false;
     if (chr_banks == 0) {
-      is_chr_ram = true;
-      chr_banks = 1;
-    }
-    chr_memory = malloc(chr_banks * 1024 * 8);
-    if (!is_chr_ram) {
+      chr_memory = malloc(1024 * 8);
+    } else {
+      chr_memory = malloc(chr_banks * 1024 * 8);
       if (fread(chr_memory, sizeof(byte_t), chr_banks * 1024 * 8, rom) !=
           chr_banks * 1024 * 8) {
         errorfln("Failed to read CHR ROM data");
@@ -180,6 +192,9 @@ void cart_load(const char *rom_path) {
   switch (mapper_id) {
   case 0:
     mapper = mapper_000(prg_banks, chr_banks);
+    break;
+  case 2:
+    mapper = mapper_002(prg_banks, chr_banks);
     break;
   default:
     errorfln("Unsupported mapper: %hhd", mapper_id);
