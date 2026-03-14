@@ -2,6 +2,7 @@
 #include "dnes.h"
 #include <stdint.h>
 #define SDL_MAIN_USE_CALLBACKS
+#include "audio_list.h"
 #include "sdl3_frontend.h"
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
@@ -27,7 +28,7 @@ static byte_t selected_palette = 0;
 static byte_t debug_info_switch = 2;
 const byte_t area_debug_info_switch_count = 3;
 static bool show_debug_info = true;
-
+const static size_t audio_list_max_samples = 120;
 static struct frame_profiler {
   double acc_input;
   double acc_ui;
@@ -231,31 +232,25 @@ static void draw_oam(int x, int y, int lines) {
   }
 }
 
-struct audio_list {
-  int count;
-  uint16_t samples[30];
-};
-
-static void audio_list_add(struct audio_list *list, uint16_t sample) {
-  list->count = (list->count + 1) % (int)SDL_arraysize(list->samples);
-  list->samples[list->count] = sample;
-}
-
 static struct audio_list audio[3];
 
-static void draw_audio_chan(int chan, int x, int y) {
+static void draw_audio_channel(int channel, int x, int y) {
   fill_rect_ppu_color(x, y, 120, 120, COLOR_BLUE);
-  for (int i = 0, j = 0; i < audio[chan].count; i++, j++) {
-    uint16_t s = audio[chan].samples[i];
-    fill_rect_ppu_color(x + (i * 4), y + (s >> (chan == 2 ? 5 : 4)), 3, 2,
+  const struct audio_list_node *node = audio_list_head(&audio[channel]);
+  int j = 0;
+  while (node != NULL) {
+    uint16_t s = node->sample;
+    fill_rect_ppu_color(x + j, y + (s >> (channel == 2 ? 5 : 4)), 3, 2,
                         COLOR_WHITE);
+    node = node->next;
+    j++;
   }
 }
 
 static void draw_audio(int x, int y) {
-  draw_audio_chan(0, x, y);
-  draw_audio_chan(1, x + 130, y);
-  draw_audio_chan(2, x, y + 130);
+  draw_audio_channel(0, x, y);
+  draw_audio_channel(1, x + 130, y);
+  draw_audio_channel(2, x, y + 130);
 }
 
 static void draw_palettes() {
@@ -313,6 +308,10 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
   if (pattern_textures[0] == NULL || pattern_textures[1] == NULL) {
     SDL_Log("Couldn't create pattern textures: %s", SDL_GetError());
     return SDL_APP_FAILURE;
+  }
+
+  for (int i = 0; i < 3; i++) {
+    audio_list_init(&audio[i]);
   }
 
   dnes_insert_cartridge(argv[1]);
@@ -394,6 +393,17 @@ static void detect_controller_input() {
   ctrl_set_input(0, CTRL_START, state[SDL_SCANCODE_S]);
 }
 
+static void collect_audio_diff_data(struct audio_list *list, uint16_t sample) {
+  if (audio_list_count(list) >= audio_list_max_samples) {
+    audio_list_pop_head(list, NULL);
+  }
+  const struct audio_list_node *tail = audio_list_tail(list);
+  if (tail != NULL && tail->sample == sample) {
+    return;
+  }
+  audio_list_push_tail(list, sample);
+}
+
 /* This function runs once per frame, and is the heart of the program. */
 SDL_AppResult SDL_AppIterate(void *appstate) {
   (void)appstate;
@@ -428,6 +438,10 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
         dnes_clock();
         if (dnes_audio_sample_ready) {
           audio_play(dnes_audio_sample);
+
+          collect_audio_diff_data(&audio[0], apu_pulse1_visual);
+          collect_audio_diff_data(&audio[1], apu_pulse2_visual);
+          collect_audio_diff_data(&audio[2], apu_noise_visual);
         }
       } while (!ppu_frame_complete);
       ppu_frame_complete = false;
@@ -495,6 +509,10 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result) {
       SDL_DestroyTexture(pattern_textures[i]);
       pattern_textures[i] = NULL;
     }
+  }
+
+  for (int i = 0; i < 3; i++) {
+    audio_list_destroy(&audio[i]);
   }
 
   audio_destroy();

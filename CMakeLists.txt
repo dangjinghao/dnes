@@ -44,7 +44,8 @@ target_compile_options(dnes_core PRIVATE
 
 
 add_executable(dnes frontend/sdl3/screen.c
-                    frontend/sdl3/audio.c)
+                    frontend/sdl3/audio.c
+                    frontend/sdl3/audio_list.c)
 
 target_include_directories(dnes PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
