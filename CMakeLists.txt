@@ -25,19 +25,20 @@ endif()
 # find all source files in the mapper/ directory
 file(GLOB_RECURSE MAPPER_SOURCES "mapper/*.c")
 
+file(GLOB_RECURSE PACK_2A03_SOURCES "pack_2a03/*.c")
+
+file(GLOB_RECURSE FRONTEND_SDL3_SOURCES "frontend/sdl3/*.c")
+
 add_library(dnes_core STATIC
-                      cpu_6502.c
                       ppu_2c02.c
                       ${MAPPER_SOURCES}
+                      ${PACK_2A03_SOURCES}
                       cartridge.c
                       dnes.c
                       bus.c
                       ram.c
                       utils.c
-                      controller.c
-                      apu_2a03.c
-                      device_4017.c
-                      dma.c)
+                      )
 
 target_include_directories(dnes_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -46,10 +47,7 @@ target_compile_options(dnes_core PRIVATE
     $<$<NOT:$<C_COMPILER_ID:MSVC>>: -Wall -Wextra -Wconversion -Wsign-conversion -Wno-unused-function>
 )
 
-
-add_executable(dnes frontend/sdl3/screen.c
-                    frontend/sdl3/audio.c
-                    frontend/sdl3/audio_list.c)
+add_executable(dnes ${FRONTEND_SDL3_SOURCES})
 
 target_include_directories(dnes PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
