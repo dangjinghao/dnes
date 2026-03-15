@@ -14,10 +14,15 @@ static void mbus_ready() {
   ppu_register_mbus(&mbus);
   ram_register(&mbus);
   cart_register_mbus(&mbus);
+
+  // 2a03 package
   ctrl_register(&mbus);
   apu_register(&mbus);
+  dev_4017_register(&mbus);
   dma_register(&mbus);
   dma_mount_mbus(&mbus);
+  // 2a03 package end
+
   bus_ready(&mbus);
   cpu_mount_mbus(&mbus);
 }

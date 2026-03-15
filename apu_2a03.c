@@ -208,7 +208,7 @@ static struct envelope noise_env;
 static struct length_counter noise_lc;
 
 static byte_t apu_read(addr_t addr, bool read_only) {
-  uint8_t data = 0x00;
+  byte_t data = 0x00;
   (void)read_only;
   if (addr == 0x4015) {
     //	data |= (pulse1_lc.counter > 0) ? 0x01 : 0x00;
@@ -219,7 +219,7 @@ static byte_t apu_read(addr_t addr, bool read_only) {
   return data;
 }
 
-static void apu_write(addr_t addr, byte_t data) {
+void apu_write(addr_t addr, byte_t data) {
   switch (addr) {
   case 0x4000: {
     switch ((data & 0xC0) >> 6) {
@@ -322,9 +322,7 @@ static void apu_write(addr_t addr, byte_t data) {
     pulse2_env.start = true;
     break;
   }
-  case 0x4008: {
-    break;
-  }
+  case 0x4008:
   case 0x4009:
   case 0x400A:
   case 0x400B: {
@@ -338,6 +336,7 @@ static void apu_write(addr_t addr, byte_t data) {
     noise_halt = (data & 0x20);
     break;
   }
+  // case 0x400D: unused
   case 0x400E: {
     switch (data & 0x0F) {
     case 0x00:
@@ -391,12 +390,7 @@ static void apu_write(addr_t addr, byte_t data) {
     }
     break;
   }
-  case 0x4015: { // APU STATUS
-    pulse1_enable = data & 0x01;
-    pulse2_enable = data & 0x02;
-    noise_enable = data & 0x04;
-    break;
-  }
+
   case 0x400F: {
     pulse1_env.start = true;
     pulse2_env.start = true;
@@ -411,6 +405,15 @@ static void apu_write(addr_t addr, byte_t data) {
     // DMC registers are not implemented yet.
     break;
   }
+  // case 0x4014: OAM DMA register is implemented in dma.c
+  case 0x4015: { // APU STATUS
+    pulse1_enable = data & 0x01;
+    pulse2_enable = data & 0x02;
+    noise_enable = data & 0x04;
+    break;
+  }
+  // case 0x4016: controller register is implemented in controller.c
+  // case 0x4017: frame counter control register
   default:
     break;
   }

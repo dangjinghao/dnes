@@ -153,7 +153,8 @@ extern struct ppu_color *COLOR_WHITE;
 extern struct ppu_color *COLOR_BLACK;
 extern struct ppu_color *COLOR_CYAN;
 
-// mapper_*.c
+/// mapper_*.c
+//
 
 struct mapper {
   bool (*map_mbus_read)(addr_t addr, size_t *mapped_addr, byte_t *data);
@@ -191,14 +192,25 @@ enum ctrl_button {
 };
 
 void ctrl_register(struct bus *bus);
+// WARN: A terrible hack for address 0x4017, which is used for both frame
+// counter control(write) and joystick 2 data(read)
+byte_t ctrl_read(addr_t addr, bool read_only);
 void ctrl_set_input(byte_t player, enum ctrl_button b, bool pressed);
 void ctrl_reset();
 void ctrl_clear_input(byte_t player);
+
+/// dev_4017.c
+//
+
+void dev_4017_register(struct bus *bus);
 
 /// apu_2a03.c
 //
 
 void apu_register(struct bus *bus);
+// WARN: A terrible hack for address 0x4017, which is used for both frame
+// counter control(write) and joystick 2 data(read)
+void apu_write(addr_t addr, byte_t data);
 void apu_clock();
 void apu_reset();
 double apu_get_output_sample();

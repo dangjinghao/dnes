@@ -6,11 +6,13 @@ static byte_t controller[2];
 static inline addr_t ctrl_real_addr(addr_t addr) { return (addr & 0x0001); }
 static void ctrl_write(addr_t addr, byte_t data) {
   (void)data;
-  // "Lock In" controller state at this time
-  controller_state[ctrl_real_addr(addr)] = controller[ctrl_real_addr(addr)];
+  (void)addr;
+  // "Lock In" the status of both controllers at this time
+  controller_state[0] = controller[0];
+  controller_state[1] = controller[1];
 }
 
-static byte_t ctrl_read(addr_t addr, bool read_only) {
+byte_t ctrl_read(addr_t addr, bool read_only) {
   // read the most significant bit of the controller state, then shift the state
   // to the left
   byte_t data = is_byte_neg(controller_state[ctrl_real_addr(addr)]);
@@ -21,7 +23,7 @@ static byte_t ctrl_read(addr_t addr, bool read_only) {
 
 void ctrl_register(struct bus *bus) {
   struct bus_regparam param = {.read = ctrl_read, .write = ctrl_write};
-  bus_register(bus, 0x4016, 0x4017, &param);
+  bus_register(bus, 0x4016, 0x4016, &param);
 }
 
 void ctrl_set_input(byte_t player, enum ctrl_button b, bool pressed) {

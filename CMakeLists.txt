@@ -34,6 +34,7 @@ add_library(dnes_core STATIC
                       utils.c
                       controller.c
                       apu_2a03.c
+                      device_4017.c
                       dma.c)
 
 target_include_directories(dnes_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
