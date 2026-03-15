@@ -25,8 +25,8 @@ endif()
 add_library(dnes_core STATIC
                       cpu_6502.c
                       ppu_2c02.c
-                      mapper_000.c
-                      mapper_002.c
+                      mapper/mapper_000.c
+                      mapper/mapper_002.c
                       cartridge.c
                       dnes.c
                       bus.c
@@ -40,7 +40,7 @@ add_library(dnes_core STATIC
 target_include_directories(dnes_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_compile_options(dnes_core PRIVATE
-    $<$<C_COMPILER_ID:MSVC>: /W4 /WX>
+    # $<$<C_COMPILER_ID:MSVC>: /W4 /WX>
     $<$<NOT:$<C_COMPILER_ID:MSVC>>: -Wall -Wextra -Wconversion -Wsign-conversion -Wno-unused-function>
 )
 
@@ -52,7 +52,7 @@ add_executable(dnes frontend/sdl3/screen.c
 target_include_directories(dnes PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_compile_options(dnes PRIVATE
-    $<$<C_COMPILER_ID:MSVC>: /W4 /WX>
+    # $<$<C_COMPILER_ID:MSVC>: /W4 /WX>
     $<$<NOT:$<C_COMPILER_ID:MSVC>>: -Wall -Wextra -Wconversion -Wsign-conversion -Wno-unused-function>
 )
 

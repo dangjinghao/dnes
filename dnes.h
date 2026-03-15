@@ -153,7 +153,7 @@ extern struct ppu_color *COLOR_WHITE;
 extern struct ppu_color *COLOR_BLACK;
 extern struct ppu_color *COLOR_CYAN;
 
-/// mapper_*.c
+/// mapper/*.c
 //
 
 struct mapper {

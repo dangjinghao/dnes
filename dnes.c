@@ -96,7 +96,8 @@ void dnes_insert_cartridge(char *rom_path) {
 
 void dnes_set_sample_frequency(uint32_t sample_rate) {
   audio_time_per_system_sample = 1.0 / (double)sample_rate;
-  audio_time_per_NES_clock = 1.0 / 5369318.0; // PPU Clock Frequency
+  const double ppu_clock_freq = 5369318.0; // PPU Clock Frequency
+  audio_time_per_NES_clock = 1.0 / ppu_clock_freq;
 }
 
 double dnes_audio_sample = 0.0;
