@@ -167,7 +167,7 @@ struct mapper {
 
 struct mapper *mapper_000(byte_t prg_banks, byte_t chr_banks);
 struct mapper *mapper_002(byte_t prg_banks, byte_t chr_banks);
-
+struct mapper *mapper_003(byte_t prg_banks, byte_t chr_banks);
 /// dnes.c
 //
 

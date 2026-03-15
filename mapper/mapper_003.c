@@ -1,54 +1,45 @@
 #include "dnes.h"
+#include <stdbool.h>
 
-static byte_t prg_bank_select_lo = 0x00;
-static byte_t prg_bank_select_hi = 0x00;
+static byte_t chr_bank_select = 0x00;
 
 static bool map_mbus_read(addr_t addr, size_t *mapped_addr, byte_t *data) {
   (void)data;
-  if (addr >= 0x8000 && addr <= 0xBFFF) {
-    *mapped_addr = prg_bank_select_lo * 0x4000 + (addr & 0x3FFF);
+  if (addr >= 0x8000 && addr <= 0xFFFF) {
+    if (mapper_prg_banks == 1) // 16K ROM
+      *mapped_addr = addr & 0x3FFF;
+    if (mapper_prg_banks == 2) // 32K ROM
+      *mapped_addr = addr & 0x7FFF;
+    return true;
+  } else
+    return false;
+}
+
+static bool map_mbus_write(addr_t addr, size_t *mapped_addr, byte_t data) {
+  if (addr >= 0x8000 && addr <= 0xFFFF) {
+    chr_bank_select = data & 0x03;
+    *mapped_addr = SIZE_MAX;
     return true;
   }
 
-  if (addr >= 0xC000 && addr <= 0xFFFF) {
-    *mapped_addr = prg_bank_select_hi * 0x4000 + (addr & 0x3FFF);
-    return true;
-  }
-  return false;
-}
-static bool map_mbus_write(addr_t addr, size_t *mapped_addr, byte_t data) {
-  if (addr >= 0x8000 && addr <= 0xFFFF) {
-    prg_bank_select_lo = data & 0x0F;
-    *mapped_addr = SIZE_MAX;
-    // Mapper has handled write, so do not update ROMs
-    return true;
-  }
+  // Mapper has handled write, but do not update ROMs
   return false;
 }
 
 static bool map_pbus_read(addr_t addr, size_t *mapped_addr) {
   if (addr < 0x2000) {
-    *mapped_addr = addr;
+    *mapped_addr = chr_bank_select * 0x2000 + addr;
     return true;
-  }
-  return false;
+  } else
+    return false;
 }
 static bool map_pbus_write(addr_t addr, size_t *mapped_addr) {
-  if (addr < 0x2000) {
-    if (mapper_chr_banks == 0) // Treating as RAM
-    {
-      *mapped_addr = addr;
-      return true;
-    }
-  }
+  (void)addr;
+  (void)mapped_addr;
   return false;
 }
 
-static void reset() {
-
-  prg_bank_select_lo = 0;
-  prg_bank_select_hi = mapper_prg_banks - 1;
-}
+static void reset() { chr_bank_select = 0; }
 
 static enum MIRROR mirror() { return M_HARDWARE; }
 
@@ -59,7 +50,7 @@ static struct mapper mapper = {.map_mbus_read = map_mbus_read,
                                .reset = reset,
                                .mirror = mirror};
 
-struct mapper *mapper_002(byte_t prg_banks, byte_t chr_banks) {
+struct mapper *mapper_003(byte_t prg_banks, byte_t chr_banks) {
   mapper_prg_banks = prg_banks;
   mapper_chr_banks = chr_banks;
   // necessary

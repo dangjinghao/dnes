@@ -22,11 +22,13 @@ else()
     find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3-shared)
 endif()
 
+# find all source files in the mapper/ directory
+file(GLOB_RECURSE MAPPER_SOURCES "mapper/*.c")
+
 add_library(dnes_core STATIC
                       cpu_6502.c
                       ppu_2c02.c
-                      mapper/mapper_000.c
-                      mapper/mapper_002.c
+                      ${MAPPER_SOURCES}
                       cartridge.c
                       dnes.c
                       bus.c

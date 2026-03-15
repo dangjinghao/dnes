@@ -68,10 +68,11 @@ static inline byte_t nes_2_hdr_chr_banks(struct nes_hdr *hdr) {
 static void cart_mbus_write(addr_t addr, byte_t data) {
   size_t mapped_addr = 0;
   if (!mapper->map_mbus_write(addr, &mapped_addr, data)) {
+    // not a valid address for this mapper
     return;
   }
   if (mapped_addr == SIZE_MAX) {
-    // mapper set the data directly, no need to write to memory
+    // mapper writes the data directly, no need to write to memory
     return;
   }
   prg_memory[mapped_addr] = data;
@@ -82,11 +83,13 @@ static byte_t cart_mbus_read(addr_t addr, bool read_only) {
   byte_t data = 0;
   size_t mapped_addr = 0;
   if (!mapper->map_mbus_read(addr, &mapped_addr, &data)) {
+    // not a valid address for this mapper
     return 0;
   }
   if (mapped_addr == SIZE_MAX) {
-    // mapper set the data directly, no need to read from memory
-    return 0;
+    // mapper reads the data directly, no need to read from memory, just return
+    // it
+    return data;
   }
   return prg_memory[mapped_addr];
 }
@@ -203,6 +206,9 @@ void cart_load(const char *rom_path) {
     break;
   case 2:
     mapper = mapper_002(prg_banks, chr_banks);
+    break;
+  case 3:
+    mapper = mapper_003(prg_banks, chr_banks);
     break;
   default:
     errorfln("Unsupported mapper: %hhd", mapper_id);
