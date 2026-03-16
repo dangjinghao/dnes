@@ -326,7 +326,7 @@ void apu_write(addr_t addr, byte_t data) {
   case 0x4009:
   case 0x400A:
   case 0x400B: {
-    // Triangle channel registers are not implemented yet.
+    // TODO: Triangle channel registers are not implemented yet.
     break;
   }
 
@@ -402,7 +402,7 @@ void apu_write(addr_t addr, byte_t data) {
   case 0x4011:
   case 0x4012:
   case 0x4013: {
-    // DMC registers are not implemented yet.
+    // TODO: DMC registers are not implemented yet.
     break;
   }
   // case 0x4014: OAM DMA register is implemented in dma.c
@@ -413,7 +413,9 @@ void apu_write(addr_t addr, byte_t data) {
     break;
   }
   // case 0x4016: controller register is implemented in controller.c
-  // case 0x4017: frame counter control register
+  case 0x4017:
+    // TODO: frame counter control register
+    break;
   default:
     break;
   }
