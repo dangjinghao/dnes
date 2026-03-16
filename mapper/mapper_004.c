@@ -64,6 +64,12 @@ static void scanline() {
 static enum MIRROR mirror() { return mirror_mode; }
 
 static bool map_pbus_read(addr_t addr, size_t *mapped_addr) {
+  if (addr < 0x2000 && mapper_chr_banks == 0) {
+    // MMC3 boards with CHR-RAM expose a flat 8KB pattern RAM window.
+    *mapped_addr = addr & 0x1FFF;
+    return true;
+  }
+
   if (addr >= 0x0000 && addr <= 0x03FF) {
     *mapped_addr = pCHRBank[0] + (addr & 0x03FF);
     return true;
@@ -108,8 +114,11 @@ static bool map_pbus_read(addr_t addr, size_t *mapped_addr) {
 }
 
 static bool map_pbus_write(addr_t addr, size_t *mapped_addr) {
-  (void)addr;
-  (void)mapped_addr;
+  if (addr < 0x2000 && mapper_chr_banks == 0) {
+    *mapped_addr = addr & 0x1FFF;
+    return true;
+  }
+
   return false;
 }
 
