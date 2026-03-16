@@ -21,7 +21,6 @@ static byte_t *prg_memory;
 static byte_t chr_banks;
 static byte_t *chr_memory;
 static struct mapper *mapper;
-byte_t mapper_prg_banks, mapper_chr_banks;
 
 static enum MIRROR hw_mirror;
 
@@ -214,7 +213,8 @@ void cart_load(const char *rom_path) {
     errorfln("Unsupported mapper: %hhd", mapper_id);
     exit(1);
   }
-
+  printf("ROM loaded: mapper %hhd, prg banks %hhd, chr banks %hhd, rom type %hhd\n", mapper_id,
+         prg_banks, chr_banks,rom_type);
   fclose(rom);
 }
 

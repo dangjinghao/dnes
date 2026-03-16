@@ -51,9 +51,7 @@ static struct mapper mapper = {.map_mbus_read = map_mbus_read,
                                .mirror = mirror};
 
 struct mapper *mapper_003(byte_t prg_banks, byte_t chr_banks) {
-  mapper_prg_banks = prg_banks;
-  mapper_chr_banks = chr_banks;
-  // necessary
-  reset();
+  mapper_default_build(prg_banks, chr_banks, &mapper);
+
   return &mapper;
 }

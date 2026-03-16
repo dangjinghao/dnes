@@ -116,8 +116,6 @@ void cart_pop();
 void cart_reset();
 struct mapper *cart_get_mapper();
 
-extern byte_t mapper_prg_banks, mapper_chr_banks;
-
 enum MIRROR cart_get_mirror_mode();
 
 /// utils.c
@@ -165,9 +163,13 @@ struct mapper {
   enum MIRROR (*mirror)();
 };
 
+void mapper_default_build(byte_t prg_banks, byte_t chr_banks,
+                          struct mapper *mapper);
 struct mapper *mapper_000(byte_t prg_banks, byte_t chr_banks);
 struct mapper *mapper_002(byte_t prg_banks, byte_t chr_banks);
 struct mapper *mapper_003(byte_t prg_banks, byte_t chr_banks);
+extern byte_t mapper_prg_banks, mapper_chr_banks;
+
 /// dnes.c
 //
 
