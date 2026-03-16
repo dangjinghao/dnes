@@ -215,6 +215,9 @@ void cart_load(const char *rom_path) {
   case 3:
     mapper = mapper_003(prg_banks, chr_banks);
     break;
+  case 4:
+    mapper = mapper_004(prg_banks, chr_banks);
+    break;
   default:
     errorfln("Unsupported mapper: %hhd", mapper_id);
     exit(1);

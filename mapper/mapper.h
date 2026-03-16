@@ -31,6 +31,8 @@ struct mapper *mapper_000(byte_t prg_banks, byte_t chr_banks);
 struct mapper *mapper_001(byte_t prg_banks, byte_t chr_banks);
 struct mapper *mapper_002(byte_t prg_banks, byte_t chr_banks);
 struct mapper *mapper_003(byte_t prg_banks, byte_t chr_banks);
+struct mapper *mapper_004(byte_t prg_banks, byte_t chr_banks);
+
 extern byte_t mapper_prg_banks, mapper_chr_banks;
 
 #endif
