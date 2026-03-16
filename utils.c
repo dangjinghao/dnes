@@ -22,3 +22,12 @@ void todo_exit(const char *file_name, size_t line) {
   fprintf(stderr, "%s:%zu TODO\n", file_name, line);
   exit(1);
 }
+
+bool is_file_exists(const char *path) {
+  FILE *f = fopen(path, "r");
+  if (f) {
+    fclose(f);
+    return true;
+  }
+  return false;
+}

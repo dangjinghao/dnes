@@ -24,6 +24,10 @@ static struct mapper *mapper;
 
 static enum MIRROR hw_mirror;
 
+static bool is_battery_sram = false;
+
+
+
 static inline bool nes_hdr_mirroring(struct nes_hdr *hdr) {
   return hdr->flag1 & (1);
 }
@@ -151,7 +155,7 @@ void cart_load(const char *rom_path) {
   }
   byte_t mapper_id = nes_hdr_mapper_id(&hdr);
   hw_mirror = nes_hdr_mirroring(&hdr) ? M_VERTICAL : M_HORIZONTAL;
-
+  is_battery_sram = nes_hdr_battery_sram(&hdr);
   byte_t rom_type = nes_hdr_nes_version(&hdr);
   switch (rom_type) {
   case 0:
@@ -224,8 +228,8 @@ void cart_load(const char *rom_path) {
 
 void cart_pop() {
   mapper->reset();
-  if (mapper->mapper_pop)
-    mapper->mapper_pop();
+  if (mapper->opt_mapper_pop)
+    mapper->opt_mapper_pop();
   mapper = NULL;
   free(prg_memory);
   free(chr_memory);
@@ -234,6 +238,74 @@ void cart_pop() {
 void cart_reset() {
   if (mapper)
     mapper->reset();
+}
+
+void cart_save_ram(const char *sav_path) {
+  if (!is_battery_sram) {
+    errorfln("Cartridge does not have battery-backed RAM, cannot save");
+    return;
+  }
+  FILE *sav = fopen(sav_path, "w");
+  if (!sav) {
+    errorfln("Failed to open sav file for writing: %s", strerror(errno));
+    return;
+  }
+  byte_t *ram = NULL;
+  if (!mapper->opt_dump_ram) {
+    errorfln("Mapper does not support dumping RAM, cannot save");
+    fclose(sav);
+    return;
+  }
+  size_t ram_size = mapper->opt_dump_ram(&ram);
+  if (ram_size == 0) {
+    errorfln("Mapper reported 0 RAM size, cannot save");
+    fclose(sav);
+    return;
+  }
+  if (fwrite(ram, sizeof(byte_t), ram_size, sav) != ram_size) {
+    errorfln("Failed to write sav data: %s", strerror(errno));
+    fclose(sav);
+    return;
+  }
+  free(ram);
+  fclose(sav);
+}
+
+void cart_load_ram(const char *sav_path) {
+  if (!is_battery_sram) {
+    errorfln("Cartridge does not have battery-backed RAM, cannot load");
+    return;
+  }
+  FILE *sav = fopen(sav_path, "r");
+  if (!sav) {
+    errorfln("Failed to open sav file for reading: %s", strerror(errno));
+    return;
+  }
+  // load sav data into a temporary buffer first, and then pass it to the mapper
+  // to load
+  fseeko(sav, 0, SEEK_END);
+  off_t sav_size = ftello(sav);
+  if (sav_size < 0) {
+    errorfln("Failed to get sav file size: %s", strerror(errno));
+    fclose(sav);
+    return;
+  }
+  byte_t *ram = malloc((size_t)sav_size);
+
+  fseeko(sav, 0, SEEK_SET);
+  if (fread(ram, sizeof(byte_t), (size_t)sav_size, sav) != (size_t)sav_size) {
+    errorfln("Failed to read sav data: %s", strerror(errno));
+    free(ram);
+    fclose(sav);
+    return;
+  }
+  fclose(sav);
+  if (!mapper->opt_load_ram) {
+    errorfln("Mapper does not support dumping RAM, cannot load");
+    return;
+  }
+  mapper->opt_load_ram(ram, (size_t)sav_size);
+  free(ram);
 }
 
 struct mapper *cart_get_mapper() { return mapper; }
@@ -250,3 +322,5 @@ enum MIRROR cart_get_mirror_mode() {
     return m;
   }
 }
+
+bool is_cart_battery_backed() { return is_battery_sram; }

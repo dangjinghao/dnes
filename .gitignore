@@ -3,4 +3,5 @@
 *.nes
 /.vs
 /out
+/rom
 .DS_Store

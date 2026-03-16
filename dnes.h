@@ -114,9 +114,13 @@ void cart_register_pbus(struct bus *pbus);
 void cart_load(const char *rom_path);
 void cart_pop();
 void cart_reset();
+void cart_save_ram(const char *sav_path);
+void cart_load_ram(const char *sav_path);
+
 struct mapper *cart_get_mapper();
 
 enum MIRROR cart_get_mirror_mode();
+bool is_cart_battery_backed();
 
 /// utils.c
 //
@@ -131,6 +135,8 @@ void serrorf(char *file_name, size_t line, char *fmt, ...)
   serrorf(__FILE_NAME__, __LINE__, fmt "\n", ##__VA_ARGS__)
 
 void todo_exit(const char *file_name, size_t line);
+bool is_file_exists(const char *path);
+
 #define TODO() todo_exit(__FILE_NAME__, __LINE__)
 
 #define ctx_mgr(st, ed)                                                        \
@@ -161,7 +167,9 @@ struct mapper {
   bool (*map_pbus_write)(addr_t addr, size_t *mapped_addr);
   void (*reset)();
   enum MIRROR (*mirror)();
-  void (*mapper_pop)();
+  size_t (*opt_dump_ram)(byte_t **ram_ref);
+  void (*opt_mapper_pop)();
+  void (*opt_load_ram)(byte_t *ram, size_t ram_size);
 };
 
 void mapper_default_build(byte_t prg_banks, byte_t chr_banks,

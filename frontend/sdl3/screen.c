@@ -1,4 +1,5 @@
 #include "SDL3/SDL_log.h"
+#include "SDL3/SDL_stdinc.h"
 #include "dnes.h"
 #include <stdint.h>
 #define SDL_MAIN_USE_CALLBACKS
@@ -38,6 +39,8 @@ static struct frame_profiler {
   double acc_total;
   int frame_count;
 } frame_profiler;
+
+static const char *DNES_SAV_PATH;
 
 static double frame_seconds_from_counter_delta(uint64_t counter_delta,
                                                uint64_t counter_freq) {
@@ -317,6 +320,22 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
   dnes_insert_cartridge(argv[1]);
   dnes_reset();
   audio_init();
+
+  DNES_SAV_PATH = SDL_getenv("DNES_SAV_PATH");
+  if (DNES_SAV_PATH != NULL) {
+    SDL_Log("Found sav path in env: %s, try to loading", DNES_SAV_PATH);
+    if (is_file_exists(DNES_SAV_PATH)) {
+      cart_load_ram(DNES_SAV_PATH);
+    } else {
+      SDL_Log("No existing sav file found at %s, starting with empty RAM",
+              DNES_SAV_PATH);
+    }
+  } else {
+    if (is_cart_battery_backed()) {
+      SDL_Log("No sav path found in env, progress will not be saved");
+    }
+  }
+
   return SDL_APP_CONTINUE; /* carry on with the program! */
 }
 
@@ -516,6 +535,11 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result) {
   }
 
   audio_destroy();
+
+  if (DNES_SAV_PATH != NULL) {
+    SDL_Log("Saving game ram sav to %s", DNES_SAV_PATH);
+    cart_save_ram(DNES_SAV_PATH);
+  }
   SDL_Log("Popping cartridge");
   cart_pop();
 }

@@ -1,5 +1,6 @@
 #include "dnes.h"
 #include <stdlib.h>
+#include <string.h>
 
 static byte_t nCHRBankSelect4Lo = 0x00;
 static byte_t nCHRBankSelect4Hi = 0x00;
@@ -212,16 +213,35 @@ static void mapper_pop() {
   vRAMStatic = NULL;
 }
 
+static size_t dump_ram(byte_t **ram_ref) {
+  if (!vRAMStatic) {
+    *ram_ref = NULL;
+    return 0;
+  }
+  *ram_ref = malloc(0x2000);
+  memcpy(*ram_ref, vRAMStatic, 0x2000);
+  return 0x2000;
+}
+
+static void load_ram(byte_t *ram, size_t ram_size) {
+  assert(ram_size == 0x2000);
+  assert(ram);
+  assert(vRAMStatic);
+  memcpy(vRAMStatic, ram, 0x2000);
+}
+
 static struct mapper mapper = {.map_mbus_read = map_mbus_read,
                                .map_mbus_write = map_mbus_write,
                                .map_pbus_read = map_pbus_read,
                                .map_pbus_write = map_pbus_write,
                                .reset = reset,
                                .mirror = mirror,
-                               .mapper_pop = mapper_pop};
+                               .opt_mapper_pop = mapper_pop,
+                               .opt_dump_ram = dump_ram,
+                               .opt_load_ram = load_ram};
 
 struct mapper *mapper_001(byte_t prg_banks, byte_t chr_banks) {
   mapper_default_build(prg_banks, chr_banks, &mapper);
-  vRAMStatic = malloc(32 * 1024);
+  vRAMStatic = malloc(0x2000); // in olc's implementation, this is 32 * 1024
   return &mapper;
 }
