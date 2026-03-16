@@ -230,18 +230,23 @@ static void load_ram(byte_t *ram, size_t ram_size) {
   memcpy(vRAMStatic, ram, 0x2000);
 }
 
-static struct mapper mapper = {.map_mbus_read = map_mbus_read,
-                               .map_mbus_write = map_mbus_write,
-                               .map_pbus_read = map_pbus_read,
-                               .map_pbus_write = map_pbus_write,
-                               .reset = reset,
-                               .mirror = mirror,
-                               .opt_mapper_pop = mapper_pop,
-                               .opt_dump_ram = dump_ram,
-                               .opt_load_ram = load_ram};
+static struct mapper mapper = {
+    .map_mbus_read = map_mbus_read,
+    .map_mbus_write = map_mbus_write,
+    .map_pbus_read = map_pbus_read,
+    .map_pbus_write = map_pbus_write,
+    .reset = reset,
+    .mirror = mirror,
+    .irq_state = mapper_defualt_irq_state,
+    .irq_clear = mapper_defualt_irq_clear,
+    .scanline = mapper_defualt_scanline,
+    .opt_mapper_pop = mapper_pop,
+    .opt_dump_ram = dump_ram,
+    .opt_load_ram = load_ram,
+};
 
 struct mapper *mapper_001(byte_t prg_banks, byte_t chr_banks) {
-  mapper_default_build(prg_banks, chr_banks, &mapper);
+  mapper_default_cons(prg_banks, chr_banks, &mapper);
   vRAMStatic = malloc(0x2000); // in olc's implementation, this is 32 * 1024
   return &mapper;
 }

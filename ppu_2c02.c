@@ -1247,7 +1247,7 @@ void ppu_clock() {
   cycle++;
   if (mask.render_background || mask.render_sprites)
     if (cycle == 260 && scanline < 240) {
-      // TODO: cart->GetMapper()->scanline();
+      cart_get_mapper()->scanline();
     }
 
   if (cycle >= 341) {

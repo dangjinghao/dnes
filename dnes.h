@@ -167,13 +167,21 @@ struct mapper {
   bool (*map_pbus_write)(addr_t addr, size_t *mapped_addr);
   void (*reset)();
   enum MIRROR (*mirror)();
+
+  bool (*irq_state)();
+  void (*irq_clear)();
+  void (*scanline)();
+
   size_t (*opt_dump_ram)(byte_t **ram_ref);
-  void (*opt_mapper_pop)();
   void (*opt_load_ram)(byte_t *ram, size_t ram_size);
+  void (*opt_mapper_pop)();
 };
 
-void mapper_default_build(byte_t prg_banks, byte_t chr_banks,
-                          struct mapper *mapper);
+bool mapper_defualt_irq_state();
+void mapper_defualt_irq_clear();
+void mapper_defualt_scanline();
+void mapper_default_cons(byte_t prg_banks, byte_t chr_banks,
+                         struct mapper *mapper);
 struct mapper *mapper_000(byte_t prg_banks, byte_t chr_banks);
 struct mapper *mapper_001(byte_t prg_banks, byte_t chr_banks);
 struct mapper *mapper_002(byte_t prg_banks, byte_t chr_banks);

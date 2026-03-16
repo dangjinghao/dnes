@@ -52,15 +52,20 @@ static void reset() {
 
 static enum MIRROR mirror() { return M_HARDWARE; }
 
-static struct mapper mapper = {.map_mbus_read = map_mbus_read,
-                               .map_mbus_write = map_mbus_write,
-                               .map_pbus_read = map_pbus_read,
-                               .map_pbus_write = map_pbus_write,
-                               .reset = reset,
-                               .mirror = mirror};
+static struct mapper mapper = {
+    .map_mbus_read = map_mbus_read,
+    .map_mbus_write = map_mbus_write,
+    .map_pbus_read = map_pbus_read,
+    .map_pbus_write = map_pbus_write,
+    .reset = reset,
+    .mirror = mirror,
+    .irq_state = mapper_defualt_irq_state,
+    .irq_clear = mapper_defualt_irq_clear,
+    .scanline = mapper_defualt_scanline,
+};
 
 struct mapper *mapper_002(byte_t prg_banks, byte_t chr_banks) {
-  mapper_default_build(prg_banks, chr_banks, &mapper);
+  mapper_default_cons(prg_banks, chr_banks, &mapper);
 
   return &mapper;
 }
