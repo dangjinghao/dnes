@@ -170,9 +170,9 @@ static bool sweeper_clock(struct sweeper *s, uint16_t *target, bool channel) {
   return changed;
 }
 
-static byte_t length_table[] = {10, 254, 20,  2,  40, 4,  80, 6,  160, 8,  60,
-                                10, 14,  12,  26, 14, 12, 16, 24, 18,  48, 20,
-                                96, 22,  192, 24, 72, 26, 16, 28, 32,  30};
+static const byte_t length_table[] = {
+    10, 254, 20, 2,  40, 4,  80, 6,  160, 8,  60, 10, 14, 12, 26, 14,
+    12, 16,  24, 18, 48, 20, 96, 22, 192, 24, 72, 26, 16, 28, 32, 30};
 
 static double global_time = 0.0;
 

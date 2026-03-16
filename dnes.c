@@ -87,11 +87,14 @@ void dnes_reset() {
   ppu_reset();
   cart_reset();
   ctrl_reset();
+  apu_reset();
   system_clock = 0;
   audio_time = 0.0;
   audio_global_time = 0.0;
-  audio_time_per_NES_clock = 0.0;
-  audio_time_per_system_sample = 0.0;
+  // WARN: DO NOT reset these two variables, as they are set by the frontend when the
+  // sample frequency is set, and should not be reset when the system is reset
+  // audio_time_per_NES_clock = 0.0;
+  // audio_time_per_system_sample = 0.0;
 }
 
 void dnes_insert_cartridge(char *rom_path) {
