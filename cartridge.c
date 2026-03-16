@@ -1,4 +1,5 @@
 #include "dnes.h"
+#include "mapper/mapper.h"
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,8 +26,6 @@ static struct mapper *mapper;
 static enum MIRROR hw_mirror;
 
 static bool is_battery_sram = false;
-
-
 
 static inline bool nes_hdr_mirroring(struct nes_hdr *hdr) {
   return hdr->flag1 & (1);
@@ -228,8 +227,7 @@ void cart_load(const char *rom_path) {
 
 void cart_pop() {
   mapper->reset();
-  if (mapper->opt_mapper_pop)
-    mapper->opt_mapper_pop();
+  mapper->mapper_pop();
   mapper = NULL;
   free(prg_memory);
   free(chr_memory);

@@ -1,4 +1,5 @@
 #include "dnes.h"
+#include "mapper.h"
 
 static byte_t prg_bank_select_lo = 0x00;
 static byte_t prg_bank_select_hi = 0x00;
@@ -62,6 +63,7 @@ static struct mapper mapper = {
     .irq_state = mapper_defualt_irq_state,
     .irq_clear = mapper_defualt_irq_clear,
     .scanline = mapper_defualt_scanline,
+    .mapper_pop = mapper_default_mapper_pop,
 };
 
 struct mapper *mapper_002(byte_t prg_banks, byte_t chr_banks) {

@@ -1,4 +1,5 @@
 #include "dnes.h"
+#include "mapper/mapper.h"
 #include <stdio.h>
 
 static size_t system_clock = 0;
@@ -72,7 +73,7 @@ void dnes_clock() {
     cpu_nmi();
   }
 
-  if(cart_get_mapper()->irq_state()){
+  if (cart_get_mapper()->irq_state()) {
     cart_get_mapper()->irq_clear();
     cpu_irq();
   }

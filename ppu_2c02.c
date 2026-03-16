@@ -1,5 +1,6 @@
 
 #include "dnes.h"
+#include "mapper/mapper.h"
 #include <string.h>
 
 static union {

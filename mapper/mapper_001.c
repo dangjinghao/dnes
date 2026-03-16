@@ -1,4 +1,5 @@
 #include "dnes.h"
+#include "mapper.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -240,7 +241,7 @@ static struct mapper mapper = {
     .irq_state = mapper_defualt_irq_state,
     .irq_clear = mapper_defualt_irq_clear,
     .scanline = mapper_defualt_scanline,
-    .opt_mapper_pop = mapper_pop,
+    .mapper_pop = mapper_pop,
     .opt_dump_ram = dump_ram,
     .opt_load_ram = load_ram,
 };

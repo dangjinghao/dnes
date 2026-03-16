@@ -1,4 +1,5 @@
 #include "dnes.h"
+#include "mapper.h"
 
 static bool map_mbus_read(addr_t addr, size_t *mapped_addr, byte_t *data) {
   // if PRGROM is 16KB
@@ -55,6 +56,7 @@ static struct mapper mapper = {
     .irq_state = mapper_defualt_irq_state,
     .irq_clear = mapper_defualt_irq_clear,
     .scanline = mapper_defualt_scanline,
+    .mapper_pop = mapper_default_mapper_pop,
 };
 
 struct mapper *mapper_000(byte_t prg_banks, byte_t chr_banks) {
