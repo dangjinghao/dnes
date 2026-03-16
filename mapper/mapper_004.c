@@ -15,6 +15,8 @@ static bool bIRQUpdate = false;
 static uint16_t nIRQCounter = 0x0000;
 static uint16_t nIRQReload = 0x0000;
 static byte_t *vRAMStatic;
+static bool bPRGRAMEnable = true;
+static bool bPRGRAMWriteProtect = false;
 
 static void mapper_pop() {
   free(vRAMStatic);
@@ -32,6 +34,8 @@ static void reset() {
   bIRQUpdate = false;
   nIRQCounter = 0x0000;
   nIRQReload = 0x0000;
+  bPRGRAMEnable = true;
+  bPRGRAMWriteProtect = false;
 
   for (int i = 0; i < 4; i++)
     pPRGBank[i] = 0;
@@ -124,8 +128,15 @@ static bool map_pbus_write(addr_t addr, size_t *mapped_addr) {
 
 static bool map_mbus_read(addr_t addr, size_t *mapped_addr, byte_t *data) {
   if (addr >= 0x6000 && addr <= 0x7FFF) {
+    // Many MMC3 boards can disable PRG RAM via A001. When disabled we return a
+    // deterministic value and mark the access as handled.
+    if (!bPRGRAMEnable) {
+      *mapped_addr = SIZE_MAX;
+      *data = 0;
+      return true;
+    }
 
-    // Write data to RAM
+    // Read data from RAM
     *data = vRAMStatic[addr & 0x1FFF];
 
     // Signal mapper has handled request
@@ -160,6 +171,10 @@ static bool map_mbus_write(addr_t addr, size_t *mapped_addr, byte_t data) {
   if (addr >= 0x6000 && addr <= 0x7FFF) {
     // Signal mapper has handled request
     *mapped_addr = SIZE_MAX;
+
+    if (!bPRGRAMEnable || bPRGRAMWriteProtect) {
+      return true;
+    }
 
     // Write data to RAM
     vRAMStatic[addr & 0x1FFF] = data;
@@ -222,8 +237,9 @@ static bool map_mbus_write(addr_t addr, size_t *mapped_addr, byte_t data) {
       else
         mirror_mode = M_VERTICAL;
     } else {
-      // PRG Ram Protect
-      // TODO:
+      // PRG-RAM protect/control (MMC3 common behavior)
+      bPRGRAMWriteProtect = (data & 0x40) != 0;
+      bPRGRAMEnable = (data & 0x80) != 0;
     }
     *mapped_addr = SIZE_MAX;
     return true;
