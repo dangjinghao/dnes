@@ -224,6 +224,8 @@ void cart_load(const char *rom_path) {
 
 void cart_pop() {
   mapper->reset();
+  if (mapper->mapper_pop)
+    mapper->mapper_pop();
   mapper = NULL;
   free(prg_memory);
   free(chr_memory);

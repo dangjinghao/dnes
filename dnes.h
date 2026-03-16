@@ -161,6 +161,7 @@ struct mapper {
   bool (*map_pbus_write)(addr_t addr, size_t *mapped_addr);
   void (*reset)();
   enum MIRROR (*mirror)();
+  void (*mapper_pop)();
 };
 
 void mapper_default_build(byte_t prg_banks, byte_t chr_banks,

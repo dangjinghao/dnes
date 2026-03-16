@@ -207,12 +207,18 @@ static void reset() {
 
 static enum MIRROR mirror() { return mirror_mode; }
 
+static void mapper_pop() {
+  free(vRAMStatic);
+  vRAMStatic = NULL;
+}
+
 static struct mapper mapper = {.map_mbus_read = map_mbus_read,
                                .map_mbus_write = map_mbus_write,
                                .map_pbus_read = map_pbus_read,
                                .map_pbus_write = map_pbus_write,
                                .reset = reset,
-                               .mirror = mirror};
+                               .mirror = mirror,
+                               .mapper_pop = mapper_pop};
 
 struct mapper *mapper_001(byte_t prg_banks, byte_t chr_banks) {
   mapper_default_build(prg_banks, chr_banks, &mapper);

@@ -516,4 +516,6 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result) {
   }
 
   audio_destroy();
+  SDL_Log("Popping cartridge");
+  cart_pop();
 }
