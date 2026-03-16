@@ -339,7 +339,8 @@ void ppu_mount_pbus(struct bus *bus) { pbus = bus; }
 
 static void ppu_nametable_write(addr_t addr, byte_t data) {
   addr &= 0x0FFF;
-  if (cart_get_mirror_mode() == M_VERTICAL) {
+  enum MIRROR mirror = cart_get_mirror_mode();
+  if (mirror == M_VERTICAL) {
     // Vertical
     if (addr >= 0x0000 && addr <= 0x03FF)
       name_table[0][addr & 0x03FF] = data;
@@ -349,7 +350,7 @@ static void ppu_nametable_write(addr_t addr, byte_t data) {
       name_table[0][addr & 0x03FF] = data;
     if (addr >= 0x0C00 && addr <= 0x0FFF)
       name_table[1][addr & 0x03FF] = data;
-  } else if (cart_get_mirror_mode() == M_HORIZONTAL) {
+  } else if (mirror == M_HORIZONTAL) {
     // Horizontal
     if (addr >= 0x0000 && addr <= 0x03FF)
       name_table[0][addr & 0x03FF] = data;
@@ -359,6 +360,10 @@ static void ppu_nametable_write(addr_t addr, byte_t data) {
       name_table[1][addr & 0x03FF] = data;
     if (addr >= 0x0C00 && addr <= 0x0FFF)
       name_table[1][addr & 0x03FF] = data;
+  } else if (mirror == M_ONESCREEN_LO) {
+    name_table[0][addr & 0x03FF] = data;
+  } else if (mirror == M_ONESCREEN_HI) {
+    name_table[1][addr & 0x03FF] = data;
   }
 }
 
@@ -366,8 +371,9 @@ static byte_t ppu_nametable_read(addr_t addr, bool readonly) {
   (void)readonly;
   byte_t data = 0x00;
   addr &= 0x0FFF;
+  enum MIRROR mirror = cart_get_mirror_mode();
 
-  if (cart_get_mirror_mode() == M_VERTICAL) {
+  if (mirror == M_VERTICAL) {
     // Vertical
     if (addr >= 0x0000 && addr <= 0x03FF)
       data = name_table[0][addr & 0x03FF];
@@ -377,7 +383,7 @@ static byte_t ppu_nametable_read(addr_t addr, bool readonly) {
       data = name_table[0][addr & 0x03FF];
     if (addr >= 0x0C00 && addr <= 0x0FFF)
       data = name_table[1][addr & 0x03FF];
-  } else if (cart_get_mirror_mode() == M_HORIZONTAL) {
+  } else if (mirror == M_HORIZONTAL) {
     // Horizontal
     if (addr >= 0x0000 && addr <= 0x03FF)
       data = name_table[0][addr & 0x03FF];
@@ -387,6 +393,10 @@ static byte_t ppu_nametable_read(addr_t addr, bool readonly) {
       data = name_table[1][addr & 0x03FF];
     if (addr >= 0x0C00 && addr <= 0x0FFF)
       data = name_table[1][addr & 0x03FF];
+  } else if (mirror == M_ONESCREEN_LO) {
+    data = name_table[0][addr & 0x03FF];
+  } else if (mirror == M_ONESCREEN_HI) {
+    data = name_table[1][addr & 0x03FF];
   }
   return data;
 }

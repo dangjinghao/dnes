@@ -201,7 +201,7 @@ static struct sweeper pulse2_sweep;
 // noise channel
 static bool noise_enable = false;
 static bool noise_halt = false;
-static double noise_sample = 0.0;
+// static double noise_sample = 0.0; // unused
 static double noise_output = 0.0;
 static struct sequencer noise_seq;
 static struct envelope noise_env;

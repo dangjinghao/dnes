@@ -203,6 +203,9 @@ void cart_load(const char *rom_path) {
   case 0:
     mapper = mapper_000(prg_banks, chr_banks);
     break;
+  case 1:
+    mapper = mapper_001(prg_banks, chr_banks);
+    break;
   case 2:
     mapper = mapper_002(prg_banks, chr_banks);
     break;
@@ -213,8 +216,9 @@ void cart_load(const char *rom_path) {
     errorfln("Unsupported mapper: %hhd", mapper_id);
     exit(1);
   }
-  printf("ROM loaded: mapper %hhd, prg banks %hhd, chr banks %hhd, rom type %hhd\n", mapper_id,
-         prg_banks, chr_banks,rom_type);
+  printf("ROM loaded: mapper %hhd, prg banks %hhd, chr banks %hhd, rom type "
+         "%hhd\n",
+         mapper_id, prg_banks, chr_banks, rom_type);
   fclose(rom);
 }
 
