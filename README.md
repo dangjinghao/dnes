@@ -71,10 +71,12 @@ cmake -S . -B build/ && cmake --build build/
   - OAM display
   - forward to next instruction / next frame / pause / reset
 - Some Bug fixes and new features(compared to olcNES)
-- game sav data dump/load (only mapper 001 is supported)
-- registrable bus
+- Game sav data dump/load (only mapper 001 is supported)
+- Registrable bus
 
   This is an interesting idea that helps me to detect some address overlay problems.
+
+- Performance analysis
 
 ## Vendor
 
