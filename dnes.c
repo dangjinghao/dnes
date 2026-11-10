@@ -49,12 +49,18 @@ void dnes_clock() {
   if (system_clock % 3 == 0) {
     // Is the system performing a DMA transfer form CPU memory to
     // OAM memory on PPU?...
-    if (dma_transfer) {
+    if (apu_cpu_stall()) {
+      // DMC memory fetches take priority over CPU execution and OAM DMA.
+    } else if (dma_transfer) {
       dma_do_transfer(system_clock);
     } else {
       // No DMA happening, the CPU is in control of its
       // own destiny. Go forth my friend and calculate
       // awesomeness for many generations to come...
+      // APU IRQ is level-triggered and remains pending until acknowledged by
+      // its registers. Only enter the handler at an instruction boundary.
+      if (cpu_inst_done() && apu_irq_state())
+        cpu_irq();
       cpu_clock();
     }
   }

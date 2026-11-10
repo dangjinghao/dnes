@@ -202,6 +202,9 @@ void apu_register(struct bus *bus);
 void apu_write(addr_t addr, byte_t data);
 void apu_clock();
 void apu_reset();
+bool apu_irq_state(void);
+// Consume one DMC DMA stall cycle; call once per CPU clock.
+bool apu_cpu_stall(void);
 double apu_get_output_sample();
 typedef void (*apu_sequencer_clock_manipulator_t)(uint32_t *s);
 extern uint16_t apu_pulse1_visual, apu_pulse2_visual, apu_noise_visual,
